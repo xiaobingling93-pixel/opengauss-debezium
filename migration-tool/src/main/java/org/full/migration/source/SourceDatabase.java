@@ -479,12 +479,6 @@ public abstract class SourceDatabase {
                 Table table = tableMeta.getTable();
                 LOGGER.info("start to read {}.{}.", table.getSchemaName(), table.getTableName());
                 try {
-                    if (table.getRowCount() == 0) {
-                        QueueManager.getInstance()
-                            .putToQueue(QueueManager.TABLE_DATA_QUEUE,
-                                new TableData(table, StringUtils.EMPTY, StringUtils.EMPTY, new SliceInfo()));
-                        continue;
-                    }
                     extractData(table, tableMeta.getColumns(), conn);
                 } catch (SQLException | InterruptedException | IOException e) {
                     LOGGER.error("read table:{}.{} has occurred an exception, error message:{}", table.getSchemaName(),
