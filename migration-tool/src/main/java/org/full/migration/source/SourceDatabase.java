@@ -37,6 +37,7 @@ import org.full.migration.model.table.TableIndex;
 import org.full.migration.model.table.TableMeta;
 import org.full.migration.model.table.TablePrimaryKey;
 import org.full.migration.source.service.SourceTableService;
+import org.full.migration.utils.DatabaseUtils;
 import org.full.migration.utils.FileUtils;
 import org.full.migration.utils.HexConverter;
 import org.slf4j.Logger;
@@ -138,6 +139,8 @@ public abstract class SourceDatabase {
     protected abstract String getQueryCheckConstraint();
 
     public abstract String convertToOpenGaussSyntax(String sqlServerDefinition);
+
+    public abstract String convertToOpenGaussBit(String bitStr);
 
     public abstract boolean isGeometryTypes(String typeName);
 
@@ -608,6 +611,9 @@ public abstract class SourceDatabase {
         for (int i = 0; i < columnCount; i++) {
             String typeName = columns.get(i).getTypeName();
             Object value = getColumnValue(rs, i + 1, typeName);
+            if ("bit".equalsIgnoreCase(typeName)) {
+               value = convertToOpenGaussBit(value.toString());
+            }
             if (isGeometryTypes(typeName)) {
                 if (value.toString().toLowerCase(Locale.ROOT).contains("point")) {
                     value = convertToOpenGaussSyntax(value.toString());
@@ -731,7 +737,7 @@ public abstract class SourceDatabase {
                             continue;
                         }
                         tableIndex.setSchemaName(sourceConfig.getSchemaMappings().get(schema));
-                        if (!tableIndex.isPrimaryKey() && !tableIndex.isUnique()) {
+                        if (!tableIndex.isPrimaryKey()) {
                             QueueManager.getInstance().putToQueue(QueueManager.TABLE_INDEX_QUEUE, tableIndex);
                         }
                         if (isDumpJson) {

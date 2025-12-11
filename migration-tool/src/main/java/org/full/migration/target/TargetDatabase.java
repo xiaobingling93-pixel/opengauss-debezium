@@ -86,7 +86,7 @@ public class TargetDatabase {
     private static final String DROP_TABLE_SQL = "drop table if exists \"%s\"";
     private static final String COPY_SQL
         = "COPY \"%s\".\"%s\" FROM STDIN WITH NULL 'null' CSV QUOTE '\"' DELIMITER ',' ESCAPE '\"' HEADER";
-    private static final String CREATE_PK_SQL = "ALTER TABLE \"%s\".\"%s\" ADD CONSTRAINT %s PRIMARY KEY (\"%s\")";
+    private static final String CREATE_PK_SQL = "ALTER TABLE \"%s\".\"%s\" ADD CONSTRAINT \"%s\" PRIMARY KEY (%s)";
     private static final String CREATE_FK_SQL
         = "ALTER TABLE \"%s\".\"%s\" ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES \"%s\".\"%s\" (\"%s\")";
     private static final String IS_TABLE_EXIST_SQL
@@ -365,6 +365,7 @@ public class TargetDatabase {
         }
         String targetSchema = tableTask.getTable().getTargetSchemaName();
         connection.setSchema(targetSchema);
+        SliceInfo sliceInfo;
         try (InputStreamReader csvReader = new InputStreamReader(Files.newInputStream(Paths.get(path)),
             StandardCharsets.UTF_8)) {
             CopyManager copyManager = new CopyManager((BaseConnection) connection);
@@ -372,7 +373,7 @@ public class TargetDatabase {
             copyManager.copyIn(copySql, csvReader);
             csvReader.close();
             FileUtils.clearCsvFile(path, isDeleteCsv);
-            SliceInfo sliceInfo = tableTask.getSliceInfo();
+            sliceInfo = tableTask.getSliceInfo();
             progressInfo.setData(calculateProgressData(sliceInfo));
             progressInfo.setRecord(sliceInfo.getRow());
             if (sliceInfo.isLast()) {
@@ -383,7 +384,7 @@ public class TargetDatabase {
                 progressInfo.setStatus(ProgressStatus.IN_MIGRATED.getCode());
             }
         } catch (SQLException e) {
-            SliceInfo sliceInfo = tableTask.getSliceInfo();
+            sliceInfo = tableTask.getSliceInfo();
             progressInfo.setData(calculateProgressData(sliceInfo));
             progressInfo.setRecord(sliceInfo.getRow());
             progressInfo.setStatus(ProgressStatus.MIGRATED_FAILURE.getCode());
@@ -393,6 +394,11 @@ public class TargetDatabase {
             insertToTable(connection, String.format("%s.%s", targetSchema, tableName), path);
         } finally {
             if (isJsonDump) {
+                sliceInfo = tableTask.getSliceInfo();
+                if (sliceInfo.isLast()) {
+                    progressInfo.setPercent(1);
+                    progressInfo.setStatus(ProgressStatus.MIGRATED_COMPLETE.getCode());
+                }
                 ProgressTracker.getInstance().upgradeTableProgress(fullName, progressInfo);
             }
         }
@@ -610,9 +616,9 @@ public class TargetDatabase {
         if (indexSqlTempOptional.isPresent()) {
             StringBuilder builder = new StringBuilder(
                     String.format(indexSqlTempOptional.get(),
-                            tableIndex.getIndexName(),
-                            tableIndex.getSchemaName(),
-                            tableIndex.getTableName(),
+                            DatabaseUtils.formatObjName(tableIndex.getIndexName()),
+                            DatabaseUtils.formatObjName(tableIndex.getSchemaName()),
+                            DatabaseUtils.formatObjName(tableIndex.getTableName()),
                             StringUtils.isEmpty(tableIndex.getIndexprs()) ? tableIndex.getColumnName() : tableIndex.getIndexprs()));
             if (StringUtils.isNotEmpty(tableIndex.getIncludedColumns())) {
                 builder.append(" INCLUDE (").append(tableIndex.getIncludedColumns()).append(")");
@@ -650,7 +656,7 @@ public class TargetDatabase {
 
     private Optional<String> getCreatePkSql(TablePrimaryKey tablePrimaryKey) {
         return Optional.of(String.format(CREATE_PK_SQL, tablePrimaryKey.getSchemaName(), tablePrimaryKey.getTableName(),
-            tablePrimaryKey.getPkName(), tablePrimaryKey.getColumnName()));
+                tablePrimaryKey.getPkName(), DatabaseUtils.formatMultiColName(tablePrimaryKey.getColumnName())));
     }
 
     private Optional<String> getCreateFkSql(TableForeignKey tableForeignKey) {

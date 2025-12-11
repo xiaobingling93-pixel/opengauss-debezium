@@ -183,7 +183,8 @@ public class ProgressTracker {
      * @param name name
      */
     public void putProgressMap(String schema, String name) {
-        progressMap.put(String.format("%s.%s", schema, name), new ProgressInfo());
+        ProgressInfo progressInfo = new ProgressInfo();
+        progressMap.put(String.format("%s.%s", schema, name), progressInfo);
     }
 
     /**
@@ -194,7 +195,7 @@ public class ProgressTracker {
      */
     public void upgradeTableProgress(String fullName, ProgressInfo progressInfo) {
         ProgressInfo preProgressInfo = progressMap.get(fullName);
-        if (preProgressInfo.getPercent() < progressInfo.getPercent()) {
+        if (preProgressInfo.getPercent() < progressInfo.getPercent() || preProgressInfo.getName() == null) {
             if (preProgressInfo.getStatus() == ProgressStatus.MIGRATED_FAILURE.getCode()) {
                 progressInfo.setStatus(ProgressStatus.MIGRATED_FAILURE.getCode());
                 progressInfo.setError(preProgressInfo.getError() + File.separator + preProgressInfo.getError());

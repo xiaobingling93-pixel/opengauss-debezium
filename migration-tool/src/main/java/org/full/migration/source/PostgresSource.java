@@ -479,6 +479,17 @@ public class PostgresSource extends SourceDatabase {
         return PostgresqlFuncTranslator.convertDefinition(PostgresSqlDefinition);
     }
 
+    @Override
+    public String convertToOpenGaussBit(String bitStr) {
+        if (bitStr.toLowerCase(Locale.ROOT).equalsIgnoreCase("true")) {
+            return  "1";
+        }
+        if (bitStr.toLowerCase(Locale.ROOT).equalsIgnoreCase("false")) {
+            return  "0";
+        }
+        return bitStr;
+    }
+
     /**
      * isGeometryTypes
      *
@@ -1011,16 +1022,16 @@ public class PostgresSource extends SourceDatabase {
             if (rs.wasNull()) {
                 return String.format(Locale.ROOT,
                         "CREATE SEQUENCE IF NOT EXISTS %s START WITH %d INCREMENT BY %d MINVALUE %d MAXVALUE %d %s CACHE %d; ",
-                        rs.getString("name"), startValue, increment, minValue, maxValue,
+                        DatabaseUtils.formatObjName(rs.getString("name")), startValue, increment, minValue, maxValue,
                         isCycling ? "CYCLE" : "NOCYCLE", cacheSize);
             } else {
                 return String.format(Locale.ROOT,
                         "CREATE SEQUENCE IF NOT EXISTS %s START WITH %d INCREMENT BY %d MINVALUE %d MAXVALUE %d %s CACHE %d; "
-                                + "SELECT setval('%s', %d);", rs.getString("name"), startValue, increment, minValue, maxValue,
+                                + "SELECT setval('%s', %d);", DatabaseUtils.formatObjName(rs.getString("name")), startValue, increment, minValue, maxValue,
                         isCycling ? "CYCLE" : "NOCYCLE", cacheSize, rs.getString("name"), currentValue);
             }
         } else if (TaskTypeEnum.VIEW.getTaskType().equalsIgnoreCase(objectType)) {
-            return String.format(Locale.ROOT, "CREATE VIEW %s AS %s", rs.getString("name"), rs.getString("definition"));
+            return String.format(Locale.ROOT, "CREATE VIEW %s AS %s", DatabaseUtils.formatObjName(rs.getString("name")), DatabaseUtils.formatObjName(rs.getString("definition")));
         }
         return rs.getString("definition");
     }
@@ -1057,7 +1068,7 @@ public class PostgresSource extends SourceDatabase {
                 String.format(PostgresSqlConstants.QUERY_INDEX_COL_SQL, objectId,
                     tableIndex.getIndexName()))) {
             while (colRs.next()) {
-                indexCols.add(colRs.getString("column_name"));
+                indexCols.add(DatabaseUtils.formatObjName(colRs.getString("column_name")));
             }
             tableIndex.setColumnName(String.join(CommonConstants.DELIMITER, indexCols));
         }
