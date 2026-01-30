@@ -33,7 +33,7 @@ public class Table {
     private String targetSchemaName;
     private String tableName;
     private long rowCount;
-    private long aveRowLength;
+    private long totalTableSize;
     private boolean isPartition;
     private boolean isSubPartition;
     private boolean hasPrimaryKey;

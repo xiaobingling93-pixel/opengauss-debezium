@@ -211,10 +211,10 @@ public class PostgresSource extends SourceDatabase {
                 table.setTargetSchemaName(sourceConfig.getSchemaMappings().get(schema));
                 if (rs.getBoolean("isPartitioned")) {
                     Map<String, Long> partitionTableSize = getPartitionTableSize(schema, tableName, conn);
-                    table.setAveRowLength(partitionTableSize.get("avgRowLength"));
+                    table.setTotalTableSize(partitionTableSize.get("totalTableSize"));
                     table.setRowCount(partitionTableSize.get("tableRows"));
                 } else {
-                    table.setAveRowLength(rs.getLong("avgRowLength"));
+                    table.setTotalTableSize(rs.getLong("totalTableSize"));
                     table.setRowCount(rs.getInt("tableRows"));
                 }
                 table.setPartition(rs.getBoolean("isPartitioned"));
@@ -398,13 +398,13 @@ public class PostgresSource extends SourceDatabase {
      */
     private Map<String, Long> getPartitionTableSize(String schemaName, String tableName, Connection connection) {
         Map<String, Long> result = new HashMap<>();
-            result.put("avgRowLength", 0L);
+            result.put("totalPageSize", 0L);
             result.put("tableRows", 0L);
         try (Statement stmt = connection.createStatement();
              ResultSet rst = stmt.executeQuery(
                      String.format(PostgresSqlConstants.QUERY_PATITION_TABLE_SIZE_SQL, schemaName, tableName))) {
             if (rst.next()) {
-                result.put("avgRowLength", rst.getLong("avgRowLength"));
+                result.put("totalPageSize", rst.getLong("totalPageSize"));
                 result.put("tableRows", rst.getLong("tableRows"));
             }
         } catch (SQLException e) {

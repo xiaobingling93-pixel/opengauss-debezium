@@ -70,7 +70,7 @@ public final class PostgresSqlConstants {
             + "    t.tablename AS tableName,\n"
             + "    c.relname AS relName,\n"
             + "    pg_stat_user_tables.n_live_tup AS tableRows,\n"
-            + "    pg_table_size(c.oid) / 1024.0 / NULLIF(pg_stat_user_tables.n_live_tup, 0) AS avgRowLength,\n"
+            + "    pg_table_size(c.oid) / 1024.0 AS totalTableSize,\n"
             + "    CASE\n"
             + "        WHEN c.relkind = 'p' THEN 1\n"
             + "        ELSE 0\n"
@@ -99,7 +99,7 @@ public final class PostgresSqlConstants {
             + "SELECT\n"
             + "    tableName,\n"
             + "    tableRows,\n"
-            + "    avgRowLength,\n"
+            + "    totalTableSize,\n"
             + "    isPartitioned,\n"
             + "    hasPrimaryKey\n"
             + "FROM\n"
@@ -137,8 +137,8 @@ public final class PostgresSqlConstants {
             "    SUM(partition_rows) AS tablerows,\n" +
             "    CASE \n" +
             "        WHEN SUM(partition_rows) = 0 THEN NULL\n" +
-            "        ELSE SUM(partition_size) / 1024.0 / SUM(partition_rows)\n" +
-            "    END AS avgrowlength\n" +
+            "        ELSE SUM(partition_size) / 1024.0\n" +
+            "    END AS totalTableSize\n" +
             "FROM\n" +
             "    PartitionStats\n" +
             "GROUP BY\n" +
