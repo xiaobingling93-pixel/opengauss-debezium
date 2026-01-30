@@ -196,9 +196,10 @@ public class TargetDatabase {
             }
             LOGGER.info("{} finished to create table.", Thread.currentThread().getName());
         } catch (SQLException e) {
-            LOGGER.warn(
-                "Unable to connect to database {}.{}, error message:{}, please check the status of database and "
-                    + "config file", dbConfig.getHost(), dbConfig.getDatabase(), e.getMessage());
+            LOGGER.warn("Unable to connect to database {}.{}, please check the status of database and config file",
+                    dbConfig.getHost(), dbConfig.getDatabase(), e);
+        } catch (Exception e) {
+            LOGGER.error("Failed to create table", e);
         }
         Thread.currentThread().interrupt();
     }
@@ -304,8 +305,8 @@ public class TargetDatabase {
                 }
             }
             LOGGER.info("{} finished to write table.", Thread.currentThread().getName());
-        } catch (SQLException e) {
-            LOGGER.warn("fail to write table, errMsg:{}", e.getMessage());
+        } catch (Exception e) {
+            LOGGER.error("Failed to write table data", e);
         }
         Thread.currentThread().interrupt();
     }
@@ -435,7 +436,7 @@ public class TargetDatabase {
                         pstmt.setObject(i + 1, "null".equalsIgnoreCase(value) ? "" : value);
                     }
                     pstmt.executeUpdate();
-                } catch (SQLException e) {
+                } catch (Exception e) {
                     failedLines.add(line);
                 }
             }

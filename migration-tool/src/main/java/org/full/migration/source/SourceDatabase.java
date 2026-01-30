@@ -461,10 +461,10 @@ public abstract class SourceDatabase {
                         new TableMeta(table, createTableSqlOptional.get(), columns, parents));
             }
         } catch (SQLException e) {
-            LOGGER.error(
-                "Unable to connect to database {}.{}, error message:{}, please check the status of database and "
-                    + "config file", sourceConfig.getDbConn().getHost(), sourceConfig.getDbConn().getDatabase(),
-                e.getMessage());
+            LOGGER.error("Unable to connect to database {}.{}, please check the status of database and config file",
+                    sourceConfig.getDbConn().getHost(), sourceConfig.getDbConn().getDatabase(), e);
+        } catch (Exception e) {
+            LOGGER.error("Failed to read table metadata", e);
         }
     }
 
@@ -484,16 +484,16 @@ public abstract class SourceDatabase {
                 try {
                     extractData(table, tableMeta.getColumns(), conn);
                 } catch (SQLException | InterruptedException | IOException e) {
-                    LOGGER.error("read table:{}.{} has occurred an exception, error message:{}", table.getSchemaName(),
-                        table.getTableName(), e.getMessage());
+                    LOGGER.error("read table:{}.{} has occurred an exception", table.getSchemaName(),
+                            table.getTableName(), e);
                 }
             }
             LOGGER.info("{} finished to read table.", Thread.currentThread().getName());
         } catch (SQLException e) {
-            LOGGER.error(
-                "Unable to connect to database {}.{}, error message:{}, please check the status of database and "
-                    + "config file", sourceConfig.getDbConn().getHost(), sourceConfig.getDbConn().getDatabase(),
-                e.getMessage());
+            LOGGER.error("Unable to connect to database {}.{}, please check the status of database and config file",
+                    sourceConfig.getDbConn().getHost(), sourceConfig.getDbConn().getDatabase(), e);
+        } catch (Exception e) {
+            LOGGER.error("Failed to read table data", e);
         }
         Thread.currentThread().interrupt();
     }
