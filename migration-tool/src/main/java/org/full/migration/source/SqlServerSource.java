@@ -100,7 +100,7 @@ public class SqlServerSource extends SourceDatabase {
                 String tableName = rs.getString("TableName");
                 Table table = new Table(sourceConfig.getDbConn().getDatabase(), schema, tableName);
                 table.setTargetSchemaName(sourceConfig.getSchemaMappings().get(schema));
-                table.setAveRowLength(rs.getLong("avgRowLength"));
+                table.setTotalTableSize(rs.getLong("totalTableSize"));
                 table.setRowCount(rs.getInt("tableRows"));
                 table.setPartition(rs.getBoolean("isPartitioned"));
                 table.setSubPartition(false);

@@ -506,9 +506,7 @@ public abstract class SourceDatabase {
         if (sourceConfig.getIsRecordSnapshot()) {
             snapshotPoint = recordSnapshotPoint(conn);
         }
-        int pageRows = Math.max(table.getAveRowLength() == 0
-            ? EMPTY_TABLE_PAGE_ROWS
-            : (int) (sourceConfig.convertFileSize().intValue() / (table.getAveRowLength())), 1);
+        int pageRows = calculatePageSize(table);
         LOGGER.info("start to export data for table {}.{}", table.getSchemaName(), table.getTableName());
         try (Statement stmt = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
             stmt.setFetchSize(pageRows);
@@ -523,7 +521,18 @@ public abstract class SourceDatabase {
         conn.commit();
     }
 
+    private int calculatePageSize(Table table) {
+        int pageRows = EMPTY_TABLE_PAGE_ROWS;
 
+        long totalTableSize = table.getTotalTableSize();
+        if (totalTableSize > 0) {
+            long fileNums = totalTableSize / sourceConfig.convertFileSize().longValue();
+            if (fileNums > 0) {
+                pageRows = Math.max(1, (int) (table.getRowCount() / (fileNums)));
+            }
+        }
+        return pageRows;
+    }
 
     /**
      * exportResultSetToCsv

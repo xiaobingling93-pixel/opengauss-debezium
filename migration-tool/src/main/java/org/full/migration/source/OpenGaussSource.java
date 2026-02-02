@@ -197,7 +197,7 @@ public class OpenGaussSource extends SourceDatabase {
                 String tableName = rs.getString("tablename");
                 Table table = new Table(sourceConfig.getDbConn().getDatabase(), schema, tableName);
                 table.setTargetSchemaName(sourceConfig.getSchemaMappings().get(schema));
-                table.setAveRowLength(rs.getLong("avgRowLength"));
+                table.setTotalTableSize(rs.getLong("totalTableSize"));
                 table.setRowCount(rs.getInt("tablerows"));
                 table.setPartition(rs.getBoolean("isPartitioned"));
                 table.setSubPartition(rs.getBoolean("isSubPartitioned"));
