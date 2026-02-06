@@ -664,9 +664,11 @@ public abstract class SourceDatabase {
     private Object getColumnValue(ResultSet rs, int columnIndex, String typeName) throws SQLException {
         // getObject 对time类型截断小数位，所使用getString读取该类型
         // getObject 对timestamp和data类型的‘infinity’值会进行内部处理导致value值异常
-        if ("time".equalsIgnoreCase(typeName) || "date".equalsIgnoreCase(typeName) || "timestamp".equalsIgnoreCase(typeName)) {
+        String type = typeName.toLowerCase(Locale.ROOT);
+        if ("time".equals(type) || "date".equals(type) || "timestamp".equals(type)
+                || "clob".equals(type) || "xml".equals(type)) {
             return rs.getString(columnIndex);
-        } else if ("money".equalsIgnoreCase(typeName)) {
+        } else if ("money".equals(type)) {
             //读取的money值会有逗号分隔数值，插入时会失败
             return handleMoneyType(rs, columnIndex);
         } else {
