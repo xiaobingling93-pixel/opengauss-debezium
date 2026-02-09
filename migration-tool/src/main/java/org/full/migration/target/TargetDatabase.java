@@ -173,7 +173,6 @@ public class TargetDatabase {
                     continue;
                 }
                 Table table = tableMeta.getTable();
-                LOGGER.info("start to migration table:{}", table.getTableName());
                 try {
                     if (isKeepExistingSchema && isTableExist(conn, table)) {
                         continue;
@@ -181,6 +180,7 @@ public class TargetDatabase {
                     String parents = tableMeta.getParents();
                     List<String> parentTables = parseParents(parents, tableMeta.getTable().getTargetSchemaName());
                     if (canCreateTable(parentTables)) {
+                        LOGGER.info("start to migration table:{}", table.getTableName());
                         copyMeta(tableMeta, conn);
                     } else {
                         QueueManager.getInstance()

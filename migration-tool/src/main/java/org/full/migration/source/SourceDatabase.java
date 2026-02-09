@@ -81,7 +81,10 @@ public abstract class SourceDatabase {
      */
     protected SourceConfig sourceConfig;
 
-    private final SourceTableService sourceTableService;
+    /**
+     * sourceTableService
+     */
+    protected final SourceTableService sourceTableService;
     private final boolean isDumpJson;
 
     /**

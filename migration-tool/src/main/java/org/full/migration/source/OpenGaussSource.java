@@ -20,6 +20,7 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.full.migration.constants.CommonConstants;
 import org.full.migration.constants.OpenGaussConstants;
+import org.full.migration.coordinator.QueueManager;
 import org.full.migration.jdbc.OpenGaussConnection;
 import org.full.migration.model.PostgresCustomTypeMeta;
 import org.full.migration.model.TaskTypeEnum;
@@ -29,12 +30,15 @@ import org.full.migration.model.table.GenerateInfo;
 import org.full.migration.model.table.Table;
 import org.full.migration.model.table.OpenGaussPartitionDefinition;
 import org.full.migration.model.table.TableIndex;
+import org.full.migration.model.table.TableMeta;
 import org.full.migration.translator.PostgresColumnType;
 import org.full.migration.translator.PostgresqlFuncTranslator;
+import org.full.migration.utils.DatabaseUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -1095,5 +1099,154 @@ public class OpenGaussSource extends SourceDatabase {
     @Override
     protected String getQueryFkSql(String schema) {
         return String.format(OpenGaussConstants.QUERY_FOREIGN_KEY_SQL, schema);
+    }
+
+    @Override
+    public void readTableConstruct() {
+        try (Connection conn = connection.getConnection(sourceConfig.getDbConn())) {
+            while (!QueueManager.getInstance().isQueuePollEnd(QueueManager.TABLE_QUEUE)) {
+                Table table = (Table) QueueManager.getInstance().pollQueue(QueueManager.TABLE_QUEUE);
+                if (table == null) {
+                    continue;
+                }
+                String schema = table.getSchemaName();
+                String tableName = table.getTableName();
+                LOGGER.info("Start to read metadata of {}.{}.", schema, tableName);
+                DatabaseMetaData metaData = conn.getMetaData();
+                ResultSet columnMetadata = metaData.getColumns(table.getCatalogName(), schema, tableName, null);
+                List<Column> columns = new ArrayList<>();
+                while (columnMetadata.next()) {
+                    sourceTableService.readTableColumn(columnMetadata).ifPresent(column -> {
+                        Optional<GenerateInfo> generateInfoOptional = getGeneratedDefine(conn, schema, tableName,
+                                column.getName());
+                        if (IsColumnGenerate(conn, schema, tableName, column) && generateInfoOptional.isPresent()) {
+                            column.setGenerated(true);
+                            column.setGenerateInfo(generateInfoOptional.get());
+                        }
+                        columns.add(column);
+                    });
+                }
+
+                String inheritsDdl = null;
+                String parents = getParentTables(conn, table);
+                if (!(StringUtils.isEmpty(parents))) {
+                    inheritsDdl = String.format(" Inherits (%s)", parents);
+                }
+                Optional<String> createTableSqlOptional = generateTableDefinition(conn, table, inheritsDdl);
+                if (createTableSqlOptional.isPresent()) {
+                    QueueManager.getInstance().putToQueue(QueueManager.SOURCE_TABLE_META_QUEUE,
+                            new TableMeta(table, createTableSqlOptional.get(), columns, parents));
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to read table metadata", e);
+        }
+    }
+
+    private Optional<String> generateTableDefinition(
+            Connection connection, Table table, String inheritsDdl) throws SQLException {
+        String schemaName = table.getSchemaName();
+        String tableName = table.getTableName();
+        Optional<String> selectResult = selectPgGetTableDef(connection, schemaName, tableName);
+        if (selectResult.isEmpty()) {
+            return Optional.empty();
+        }
+
+        String createTableSql = null;
+        String tempSql = null;
+        List<String> commentSqls = new ArrayList<>();
+        for (String sql : selectResult.get().split(";")) {
+            tempSql = sql.trim();
+            if (tempSql.startsWith("CREATE TABLE")
+                    || tempSql.startsWith("CREATE GLOBAL TEMPORARY TABLE")
+                    || tempSql.startsWith("CREATE UNLOGGED TABLE")) {
+                createTableSql = sql;
+                continue;
+            }
+            if (tempSql.startsWith("COMMENT ON COLUMN") || tempSql.startsWith("COMMENT ON TABLE")) {
+                commentSqls.add(sql);
+            }
+        }
+
+        if (StringUtils.isEmpty(createTableSql)) {
+            LOGGER.error("Select create table SQL is null, table: {}.{}", schemaName, tableName);
+            return Optional.empty();
+        }
+
+        createTableSql = filterDefaultNextval(createTableSql);
+        createTableSql = combineInheritsDdl(createTableSql, inheritsDdl);
+
+        StringBuilder tableDefinitionSql = new StringBuilder("SET search_path = ")
+                .append( DatabaseUtils.formatObjName(table.getTargetSchemaName())).append(";");
+        tableDefinitionSql.append(createTableSql).append(";");
+        if (!commentSqls.isEmpty()) {
+            tableDefinitionSql.append(String.join(";", commentSqls)).append(";");
+        }
+        return Optional.of(tableDefinitionSql.toString());
+    }
+
+    private String filterDefaultNextval(String createTableSql) {
+        return createTableSql.replaceAll("DEFAULT nextval\\('\\w+\\.?\\w+'::regclass\\)", "");
+    }
+
+    private String combineInheritsDdl(String createTableSql, String inheritsDdl) {
+        if (StringUtils.isEmpty(inheritsDdl)) {
+            return createTableSql;
+        }
+
+        int index = getIndexBeforeTableOptions(createTableSql);
+        if (index == -1) {
+            return createTableSql;
+        }
+        return createTableSql.substring(0, index + 1) + inheritsDdl + createTableSql.substring(index + 1);
+    }
+
+    private int getIndexBeforeTableOptions(String sql) {
+        if (sql == null || sql.trim().isEmpty()) {
+            return -1;
+        }
+        int start = sql.indexOf('(');
+        if (start == -1) {
+            return -1;
+        }
+
+        int depth = 0;
+        int end = -1;
+        for (int i = start; i < sql.length(); i++) {
+            char c = sql.charAt(i);
+            if (c == '(') {
+                depth++;
+                continue;
+            }
+            if (c == ')') {
+                depth--;
+
+                if (depth == 0) {
+                    end = i;
+                    break;
+                }
+            }
+        }
+        return end;
+    }
+
+    private Optional<String> selectPgGetTableDef(Connection connection, String schema, String table)
+            throws SQLException {
+        String sqlResult = null;
+        String fullName = DatabaseUtils.formatObjName(schema) + "." + DatabaseUtils.formatObjName(table);
+        try (PreparedStatement preStatement = connection.prepareStatement(OpenGaussConstants.SELECT_PG_GET_TABLE_DEF)) {
+            preStatement.setString(1, fullName);
+            try (ResultSet resultSet = preStatement.executeQuery()) {
+                if (resultSet.next()) {
+                    sqlResult = resultSet.getString(1);
+                }
+            }
+        }
+
+        if (StringUtils.isEmpty(sqlResult)) {
+            LOGGER.error("Select table definition is empty, table: {}", fullName);
+            return Optional.empty();
+        }
+        return Optional.of(sqlResult);
     }
 }
