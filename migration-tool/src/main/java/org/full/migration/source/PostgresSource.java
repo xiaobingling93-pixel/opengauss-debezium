@@ -479,17 +479,6 @@ public class PostgresSource extends SourceDatabase {
         return PostgresqlFuncTranslator.convertDefinition(PostgresSqlDefinition);
     }
 
-    @Override
-    public String convertToOpenGaussBit(String bitStr) {
-        if (bitStr.toLowerCase(Locale.ROOT).equalsIgnoreCase("true")) {
-            return  "1";
-        }
-        if (bitStr.toLowerCase(Locale.ROOT).equalsIgnoreCase("false")) {
-            return  "0";
-        }
-        return bitStr;
-    }
-
     /**
      * isGeometryTypes
      *

@@ -156,11 +156,6 @@ public class SqlServerSource extends SourceDatabase {
     }
 
     @Override
-    public String convertToOpenGaussBit(String bitStr) {
-        return bitStr;
-    }
-
-    @Override
     public boolean isGeometryTypes(String typeName) {
         return SqlServerColumnType.isGeometryTypes(typeName);
     }
