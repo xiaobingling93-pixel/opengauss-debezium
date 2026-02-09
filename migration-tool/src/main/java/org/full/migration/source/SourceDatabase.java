@@ -143,8 +143,6 @@ public abstract class SourceDatabase {
 
     public abstract String convertToOpenGaussSyntax(String sqlServerDefinition);
 
-    public abstract String convertToOpenGaussBit(String bitStr);
-
     public abstract boolean isGeometryTypes(String typeName);
 
     /**
@@ -623,13 +621,10 @@ public abstract class SourceDatabase {
         for (int i = 0; i < columnCount; i++) {
             String typeName = columns.get(i).getTypeName();
             Object value = getColumnValue(rs, i + 1, typeName);
-            if ("bit".equalsIgnoreCase(typeName)) {
-               value = convertToOpenGaussBit(value.toString());
-            }
-            if (isGeometryTypes(typeName)) {
-                if (value.toString().toLowerCase(Locale.ROOT).contains("point")) {
-                    value = convertToOpenGaussSyntax(value.toString());
-                }
+            if (isGeometryTypes(typeName) && value.toString().toLowerCase(Locale.ROOT).contains("point")) {
+                value = convertToOpenGaussSyntax(value.toString());
+            } else if ("blob".equalsIgnoreCase(typeName)) {
+                value = HexConverter.convertToHexString((byte[]) value);
             }
             rowList.add(value);
         }
@@ -665,11 +660,9 @@ public abstract class SourceDatabase {
     }
 
     private Object getColumnValue(ResultSet rs, int columnIndex, String typeName) throws SQLException {
-        // getObject 对time类型截断小数位，所使用getString读取该类型
-        // getObject 对timestamp和data类型的‘infinity’值会进行内部处理导致value值异常
         String type = typeName.toLowerCase(Locale.ROOT);
-        if ("time".equals(type) || "date".equals(type) || "timestamp".equals(type)
-                || "clob".equals(type) || "xml".equals(type)) {
+        if (type.contains("time") || "date".equals(type) || "clob".equals(type) || "xml".equals(type)
+                || "bit".equals(type)) {
             return rs.getString(columnIndex);
         } else if ("money".equals(type)) {
             //读取的money值会有逗号分隔数值，插入时会失败
