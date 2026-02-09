@@ -544,6 +544,11 @@ public final class OpenGaussConstants {
      */
     public static final String CREATE_PUBLICATION = "CREATE PUBLICATION dbz_publication FOR TABLE %s;";
 
+    /**
+     * sql for querying table definition
+     */
+    public static final String SELECT_PG_GET_TABLE_DEF = "SELECT pg_get_tabledef(?);";
+
     private OpenGaussConstants() {
     }
 }

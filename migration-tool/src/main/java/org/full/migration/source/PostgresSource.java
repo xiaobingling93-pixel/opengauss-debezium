@@ -398,13 +398,13 @@ public class PostgresSource extends SourceDatabase {
      */
     private Map<String, Long> getPartitionTableSize(String schemaName, String tableName, Connection connection) {
         Map<String, Long> result = new HashMap<>();
-            result.put("totalPageSize", 0L);
+            result.put("totalTableSize", 0L);
             result.put("tableRows", 0L);
         try (Statement stmt = connection.createStatement();
              ResultSet rst = stmt.executeQuery(
                      String.format(PostgresSqlConstants.QUERY_PATITION_TABLE_SIZE_SQL, schemaName, tableName))) {
             if (rst.next()) {
-                result.put("totalPageSize", rst.getLong("totalPageSize"));
+                result.put("totalTableSize", rst.getLong("totalTableSize"));
                 result.put("tableRows", rst.getLong("tableRows"));
             }
         } catch (SQLException e) {
