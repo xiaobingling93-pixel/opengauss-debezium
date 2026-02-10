@@ -55,7 +55,7 @@ public class ObjectMigration extends MigrationStrategy {
         Set<String> schemaSet = source.getSchemaSet();
         try {
             for (String schema : schemaSet) {
-                executor.submit(() -> source.readObjects(sourceDbType, objectType, schema));
+                executor.submit(() -> source.readObjects(objectType, schema));
                 executor.submit(() -> target.writeObjects(sourceDbType, objectType));
             }
         } catch (IllegalArgumentException e) {

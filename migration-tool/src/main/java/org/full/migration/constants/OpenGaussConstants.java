@@ -457,57 +457,61 @@ public final class OpenGaussConstants {
         + "  AND n.nspname NOT IN ('pg_catalog', 'information_schema');  ";
 
     /**
-     * sql for Create function to obtain all sequence information under the schema
+     * sql for querying all sequences
      */
-    public static final String CREATE_GET_SEQUENCE_INFO_FUNC = "CREATE OR REPLACE FUNCTION "
-        + "public.get_all_sequences_info(schema_name text)\n"
-        + "RETURNS TABLE (\n"
-        + "    seq_name text,\n"
-        + "    start_value bigint,\n"
-        + "    increment_by bigint,\n"
-        + "    min_value bigint,\n"
-        + "    max_value bigint,\n"
-        + "    is_cycled boolean,\n"
-        + "    cache_size bigint,\n"
-        + "    last_value bigint,\n"
-        + "    type_id oid\n"
-        + ") AS $$\n"
-        + "DECLARE\n"
-        + "    query text;\n"
-        + "    seq_record record;\n"
-        + "BEGIN\n"
-        + "    -- 遍历schema下的所有序列\n"
-        + "    FOR seq_record IN\n"
-        + "        SELECT c.relname\n"
-        + "        FROM pg_class c\n"
-        + "        JOIN pg_namespace n ON c.relnamespace = n.oid\n"
-        + "        WHERE n.nspname = schema_name AND c.relkind = 'S'\n"
-        + "    LOOP\n"
-        + "        query := format('\n"
-        + "            SELECT\n"
-        + "                %L AS seq_name,\n"
-        + "                start_value,\n"
-        + "                increment_by,\n"
-        + "                min_value,\n"
-        + "                max_value,\n"
-        + "                is_cycled,\n"
-        + "                cache_value AS cache_size,\n"
-        + "                last_value,\n"
-        + "                (SELECT oid FROM pg_type WHERE typname = ''int8'') AS type_id\n"
-        + "            FROM %I.%I',\n"
-        + "            seq_record.relname, schema_name, seq_record.relname);\n"
-        + "        RETURN QUERY EXECUTE query;\n"
-        + "    END LOOP;\n"
-        + "END;\n"
-        + "$$ LANGUAGE plpgsql;\n";
+    public static final String QUERY_ALL_SEQUENCES_SQL = """
+            SELECT c.relname, c.relkind
+            FROM pg_class c
+            JOIN pg_namespace n ON c.relnamespace = n.oid
+            WHERE n.nspname = ? AND (c.relkind = 'S' OR c.relkind = 'L');
+            """;
+
+    public static final String QUERY_SEQUENCE_USAGE_SQL = """
+            WITH sequence_usage AS (
+                SELECT
+                    n.nspname AS schema_name,
+                    c.relname AS table_name,
+                    a.attname AS column_name,
+                    regexp_replace(
+                        pg_get_expr(d.adbin, d.adrelid),
+                        E'.*nextval\\\\(''([^'']+)''.*',
+                        E'\\\\1'
+                    ) AS sequence_name
+                FROM pg_class c
+                JOIN pg_namespace n ON c.relnamespace = n.oid
+                JOIN pg_attribute a ON a.attrelid = c.oid
+                JOIN pg_attrdef d ON d.adrelid = c.oid AND d.adnum = a.attnum
+                WHERE c.relkind IN ('r', 'p')
+                    AND a.attnum > 0
+                    AND NOT a.attisdropped
+                    AND pg_get_expr(d.adbin, d.adrelid) LIKE '%nextval%'
+                    AND n.nspname = ?  -- 指定schema
+            )
+            SELECT
+                schema_name,
+                table_name,
+                column_name,
+            	sequence_name
+            FROM sequence_usage
+            ORDER BY table_name, column_name;
+            """;
 
     /**
-     * sql for querying sequences
+     * sql for querying sequence info
      */
-    public static final String QUERY_SEQUENCE_SQL = " SELECT seq_name AS name, "
-        + "start_value AS startvalue, increment_by AS increment, min_value AS minvalue, max_value AS maxvalue, "
-        + "is_cycled AS iscycling, cache_size AS cachesize, last_value AS currentvalue, type_id AS typeid "
-        + "FROM public.get_all_sequences_info('%s');";
+    public static final String SELECT_SEQUENCE_SQL = """
+            SELECT
+                sequence_name,
+                last_value,
+                start_value,
+                increment_by,
+                max_value,
+                min_value,
+                cache_value,
+                is_cycled
+            FROM
+                %s.%s
+            """;
 
     /**
      * sql for creating logical replication slot

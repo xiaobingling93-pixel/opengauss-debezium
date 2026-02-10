@@ -22,7 +22,7 @@ import org.full.migration.constants.CommonConstants;
 import org.full.migration.coordinator.ProgressTracker;
 import org.full.migration.coordinator.QueueManager;
 import org.full.migration.jdbc.JdbcConnection;
-import org.full.migration.model.DbObject;
+import org.full.migration.model.object.DbObject;
 import org.full.migration.model.PostgresCustomTypeMeta;
 import org.full.migration.model.TaskTypeEnum;
 import org.full.migration.model.config.GlobalConfig;
@@ -37,7 +37,6 @@ import org.full.migration.model.table.TableIndex;
 import org.full.migration.model.table.TableMeta;
 import org.full.migration.model.table.TablePrimaryKey;
 import org.full.migration.source.service.SourceTableService;
-import org.full.migration.utils.DatabaseUtils;
 import org.full.migration.utils.FileUtils;
 import org.full.migration.utils.HexConverter;
 import org.slf4j.Logger;
@@ -85,7 +84,11 @@ public abstract class SourceDatabase {
      * sourceTableService
      */
     protected final SourceTableService sourceTableService;
-    private final boolean isDumpJson;
+
+    /**
+     * isDumpJson
+     */
+    protected final boolean isDumpJson;
 
     /**
      * Constructor
@@ -702,7 +705,7 @@ public abstract class SourceDatabase {
      * @param objectType objectType
      * @param schema schema
      */
-    public void readObjects(String sourceDbType, String objectType, String schema) {
+    public void readObjects(String objectType, String schema) {
         try (Connection conn = connection.getConnection(sourceConfig.getDbConn());
             Statement statement = conn.createStatement()) {
             String querySql = String.format(getQueryObjectSql(objectType.toLowerCase(Locale.ROOT), conn), schema);
