@@ -165,12 +165,12 @@ public final class OpenGaussConstants {
     /**
      * sql for querying not patition table rows
      */
-    public static final String QUERY_PARENT_WITH_LOCK_SQL = "SELECT %s FROM ONLY %s.%s FOR SHARE";
+    public static final String QUERY_FROM_PARENT_SQL = "SELECT %s FROM ONLY %s.%s";
 
     /**
      * sql for querying patition table rows
      */
-    public static final String QUERY_WITH_LOCK_SQL = "SELECT %s FROM %s.%s FOR SHARE";
+    public static final String QUERY_FROM_TABLE_SQL = "SELECT %s FROM %s.%s";
 
     /**
      * sql for querying indexes

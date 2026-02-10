@@ -964,10 +964,10 @@ public class OpenGaussSource extends SourceDatabase {
             }
             return name;
         }).collect(Collectors.toList());
-        String queryDataSql = OpenGaussConstants.QUERY_WITH_LOCK_SQL;;
+        String queryDataSql = OpenGaussConstants.QUERY_FROM_TABLE_SQL;;
         List<String> childs = getChildTables(table.getSchemaName(), table.getTableName(), conn);
         if (childs.size() > 0) {
-            queryDataSql = OpenGaussConstants.QUERY_PARENT_WITH_LOCK_SQL;
+            queryDataSql = OpenGaussConstants.QUERY_FROM_PARENT_SQL;
         }
         return String.format(queryDataSql,
                 String.join(CommonConstants.DELIMITER, columnNames),
