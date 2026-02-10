@@ -20,11 +20,14 @@ import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.full.migration.constants.CommonConstants;
 import org.full.migration.constants.OpenGaussConstants;
+import org.full.migration.coordinator.ProgressTracker;
 import org.full.migration.coordinator.QueueManager;
 import org.full.migration.jdbc.OpenGaussConnection;
+import org.full.migration.model.object.DbObject;
 import org.full.migration.model.PostgresCustomTypeMeta;
 import org.full.migration.model.TaskTypeEnum;
 import org.full.migration.model.config.GlobalConfig;
+import org.full.migration.model.object.Sequence;
 import org.full.migration.model.table.Column;
 import org.full.migration.model.table.GenerateInfo;
 import org.full.migration.model.table.Table;
@@ -990,14 +993,6 @@ public class OpenGaussSource extends SourceDatabase {
                 return OpenGaussConstants.QUERY_TRIGGER_SQL;
             case PROCEDURE:
                 return OpenGaussConstants.QUERY_PROCEDURE_SQL;
-            case SEQUENCE:
-                try (Statement statement = conn.createStatement()) {
-                    statement.execute(OpenGaussConstants.CREATE_GET_SEQUENCE_INFO_FUNC);
-                } catch (SQLException e) {
-                    LOGGER.error("Failed to create function to obtain all sequence information " +
-                            "from the specified schema. error message:{}", e.getMessage());
-                }
-                return OpenGaussConstants.QUERY_SEQUENCE_SQL;
             default:
                 LOGGER.error(
                         "objectType {} is invalid, please check the object of migration in [view, function, trigger, "
@@ -1008,58 +1003,13 @@ public class OpenGaussSource extends SourceDatabase {
 
     @Override
     protected String convertDefinition(String objectType, ResultSet rs) throws SQLException {
-        if (TaskTypeEnum.SEQUENCE.getTaskType().equalsIgnoreCase(objectType)) {
-            long minValue = rs.getLong("minValue");
-            long maxValue = rs.getLong("maxValue");
-            int typeId = rs.getInt("typeId");
-            if (minValue == Long.MIN_VALUE || maxValue == Long.MAX_VALUE) {
-                long[] bounds = getDataTypeBounds(typeId);
-                minValue = Math.max(bounds[0], minValue);
-                maxValue = Math.min(bounds[1], maxValue);
-            }
-            int cacheSize = rs.getInt("cacheSize");
-            // openGauss 默认1
-            cacheSize = cacheSize == 0 ? 1 : cacheSize;
-            long increment = rs.getLong("increment");
-            increment = increment == 0 ? 1 : increment;
-            long startValue = rs.getLong("startValue");
-            startValue = startValue == 0 ? (increment > 0 ? 1 : -1) : startValue;
-            boolean isCycling = rs.getBoolean("isCycling");
-            long currentValue = rs.getLong("currentValue");
-            if (rs.wasNull()) {
-                return String.format(Locale.ROOT,
-                        "CREATE SEQUENCE IF NOT EXISTS %s START WITH %d INCREMENT BY %d MINVALUE %d MAXVALUE %d %s CACHE %d; ",
-                        rs.getString("name"), startValue, increment, minValue, maxValue,
-                        isCycling ? "CYCLE" : "NOCYCLE", cacheSize);
-            } else {
-                return String.format(Locale.ROOT,
-                        "CREATE SEQUENCE IF NOT EXISTS %s START WITH %d INCREMENT BY %d MINVALUE %d MAXVALUE %d %s CACHE %d; "
-                                + "SELECT setval('%s', %d);", rs.getString("name"), startValue, increment, minValue, maxValue,
-                        isCycling ? "CYCLE" : "NOCYCLE", cacheSize, rs.getString("name"), currentValue);
-            }
-        } else if (TaskTypeEnum.VIEW.getTaskType().equalsIgnoreCase(objectType)) {
+        if (TaskTypeEnum.VIEW.getTaskType().equalsIgnoreCase(objectType)) {
             return String.format(Locale.ROOT, "CREATE VIEW %s AS %s",
                     rs.getString("name"), rs.getString("definition"));
         } else if (TaskTypeEnum.TRIGGER.getTaskType().equalsIgnoreCase(objectType)) {
             return rs.getString("definition").replaceAll("DEFINER\\s*=\\s*\\w+\\s*", "");
         } else {
             return rs.getString("definition");
-        }
-    }
-
-
-    private long[] getDataTypeBounds(int systemTypeId) {
-        switch (systemTypeId) {
-            case 23: // int
-                return new long[] {-2147483648L, 2147483647L};
-            case 21: // smallint
-                return new long[] {-32768L, 32767L};
-            case 16: // tinyint
-                return new long[] {0L, 255L};
-            case 20: // bigint
-                return new long[] {-9223372036854775808L, 9223372036854775807L};
-            default:
-                throw new IllegalArgumentException("Unsupported data type ID: " + systemTypeId);
         }
     }
 
@@ -1243,5 +1193,141 @@ public class OpenGaussSource extends SourceDatabase {
             return Optional.empty();
         }
         return Optional.of(sqlResult);
+    }
+
+    @Override
+    public void readObjects(String objectType, String schema) {
+        TaskTypeEnum taskTypeEnum = TaskTypeEnum.getTaskTypeEnum(objectType);
+        switch (taskTypeEnum) {
+            case VIEW:
+            case FUNCTION:
+            case TRIGGER:
+            case PROCEDURE:
+                super.readObjects(objectType, schema);
+                break;
+            case SEQUENCE:
+                readSequence(schema);
+                break;
+            default:
+                LOGGER.error("Object type '{}' is invalid, please check the object of migration in [view, function, "
+                        + "trigger, procedure, sequence]", objectType);
+                throw new IllegalArgumentException("Object type '" + objectType + "' is an unsupported type.");
+        }
+    }
+
+    private void readSequence(String schema) {
+        try (Connection conn = connection.getConnection(sourceConfig.getDbConn());
+             Statement statement = conn.createStatement()) {
+            List<Sequence> sequenceList = searchSequence(conn, schema);
+            selectFromSequence(statement, sequenceList);
+            Map<String, Sequence> sequenceUsageMap = searchSequenceOwnedBy(conn, schema);
+            sequenceList.forEach(sequence -> {
+                Sequence sequenceUsage = sequenceUsageMap.get(sequence.getName());
+                if (sequenceUsage != null) {
+                    sequence.setOwnedTable(sequenceUsage.getOwnedTable());
+                    sequence.setOwnedColumn(sequenceUsage.getOwnedColumn());
+                }
+            });
+
+            for (Sequence sequence : sequenceList) {
+                String name = sequence.getName();
+                LOGGER.debug("Read sequence: {}.{}", schema, name);
+                DbObject dbObject = new DbObject();
+                dbObject.setSchema(schema);
+                dbObject.setName(name);
+                dbObject.setDefinition(generateSequenceDefinition(sequence));
+
+                QueueManager.getInstance().putToQueue(QueueManager.OBJECT_QUEUE, dbObject);
+                if (isDumpJson) {
+                    ProgressTracker.getInstance().putProgressMap(schema, name);
+                }
+            }
+            if (isDumpJson) {
+                ProgressTracker.getInstance().recordObjectProgress(TaskTypeEnum.SEQUENCE);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to read sequence, schema: {}", schema, e);
+        }
+        QueueManager.getInstance().setReadFinished(QueueManager.OBJECT_QUEUE, true);
+    }
+
+    private String generateSequenceDefinition(Sequence sequence) {
+        StringBuilder stringBuilder = new StringBuilder("CREATE ");
+        stringBuilder.append(sequence.isLargeSequence() ? "LARGE" : "")
+                .append(" SEQUENCE IF NOT EXISTS ").append(sequence.getName())
+                .append(" START WITH ").append(sequence.getStartValue())
+                .append(" INCREMENT BY ").append(sequence.getIncrementBy())
+                .append(" MINVALUE ").append(sequence.getMinValue())
+                .append(" MAXVALUE ").append(sequence.getMaxValue())
+                .append(sequence.isCycled() ? "CYCLE" : "NOCYCLE")
+                .append(" CACHE ").append(sequence.getCacheValue())
+                .append(" OWNED BY ").append(sequence.getOwnedBy()).append(";")
+                .append(" SELECT setval('").append(sequence.getName()).append("', ")
+                .append(sequence.getLastValue()).append(");");
+
+        if (sequence.getOwnedTable() != null && sequence.getOwnedColumn() != null) {
+            stringBuilder.append(" ALTER TABLE ").append(sequence.getOwnedTable())
+                    .append(" ALTER COLUMN ").append(sequence.getOwnedColumn())
+                    .append(" SET DEFAULT nextval('").append(sequence.getName())
+                    .append("'::regclass);");
+        }
+        return stringBuilder.toString();
+    }
+
+    private List<Sequence> searchSequence(Connection connection, String schema) throws SQLException {
+        List<Sequence> sequenceList = new ArrayList<>();
+        try (PreparedStatement preStatement = connection.prepareStatement(OpenGaussConstants.QUERY_ALL_SEQUENCES_SQL)) {
+            preStatement.setString(1, schema);
+            try (ResultSet resultSet = preStatement.executeQuery()) {
+                while (resultSet.next()) {
+                    Sequence sequence = new Sequence();
+                    sequence.setSchema(schema);
+                    sequence.setName(resultSet.getString("relname"));
+                    sequence.setLargeSequence("L".equals(resultSet.getString("relkind")));
+                    sequenceList.add(sequence);
+                }
+            }
+        }
+        return sequenceList;
+    }
+
+    private void selectFromSequence(Statement statement, List<Sequence> sequenceList) {
+        String selectSequenceSql;
+        for (Sequence sequence : sequenceList) {
+            selectSequenceSql = String.format(OpenGaussConstants.SELECT_SEQUENCE_SQL,
+                    DatabaseUtils.formatObjName(sequence.getSchema()), DatabaseUtils.formatObjName(sequence.getName()));
+            try (ResultSet resultSet = statement.executeQuery(selectSequenceSql)) {
+                if (resultSet.next()) {
+                    sequence.setLastValue(resultSet.getString("last_value"));
+                    sequence.setStartValue(resultSet.getString("start_value"));
+                    sequence.setIncrementBy(resultSet.getLong("increment_by"));
+                    sequence.setMaxValue(resultSet.getString("max_value"));
+                    sequence.setMinValue(resultSet.getString("min_value"));
+                    sequence.setCacheValue(resultSet.getLong("cache_value"));
+                    sequence.setCycled(resultSet.getBoolean("is_cycled"));
+                }
+            } catch (SQLException e) {
+                LOGGER.error("Failed to query sequence info, name: {}.{}", sequence.getSchema(), sequence.getName(), e);
+            }
+        }
+    }
+
+    private static Map<String, Sequence> searchSequenceOwnedBy(Connection conn, String schema)
+            throws SQLException {
+        Map<String, Sequence> resultMap = new HashMap<>();
+        try (PreparedStatement preStatement = conn.prepareStatement(OpenGaussConstants.QUERY_SEQUENCE_USAGE_SQL)) {
+            preStatement.setString(1, schema);
+            try (ResultSet resultSet = preStatement.executeQuery()) {
+                while (resultSet.next()) {
+                    Sequence sequence = new Sequence();
+                    String sequenceName = resultSet.getString("sequence_name").replaceAll(schema + "\\.", "");
+                    sequence.setName(sequenceName);
+                    sequence.setOwnedTable(resultSet.getString("table_name"));
+                    sequence.setOwnedColumn(resultSet.getString("column_name"));
+                    resultMap.put(sequenceName, sequence);
+                }
+            }
+        }
+        return resultMap;
     }
 }

@@ -13,7 +13,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-package org.full.migration.model;
+package org.full.migration.model.object;
 
 import lombok.Data;
 

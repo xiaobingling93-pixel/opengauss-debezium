@@ -24,7 +24,7 @@ import org.full.migration.coordinator.ProgressTracker;
 import org.full.migration.coordinator.QueueManager;
 import org.full.migration.jdbc.JdbcConnection;
 import org.full.migration.jdbc.OpenGaussConnection;
-import org.full.migration.model.DbObject;
+import org.full.migration.model.object.DbObject;
 import org.full.migration.model.FullName;
 import org.full.migration.model.PostgresCustomTypeMeta;
 import org.full.migration.model.config.DatabaseConfig;
