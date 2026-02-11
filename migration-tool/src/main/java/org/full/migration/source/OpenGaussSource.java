@@ -1118,11 +1118,14 @@ public class OpenGaussSource extends SourceDatabase {
             return Optional.empty();
         }
 
+        String targetSchema = table.getTargetSchemaName();
         createTableSql = filterDefaultNextval(createTableSql);
+        createTableSql = filterForeignKey(createTableSql);
         createTableSql = combineInheritsDdl(createTableSql, inheritsDdl);
+        createTableSql = createTableSql.replaceAll(schemaName + "\\.", targetSchema + ".");
 
         StringBuilder tableDefinitionSql = new StringBuilder("SET search_path = ")
-                .append( DatabaseUtils.formatObjName(table.getTargetSchemaName())).append(";");
+                .append(DatabaseUtils.formatObjName(targetSchema)).append(";");
         tableDefinitionSql.append(createTableSql).append(";");
         if (!commentSqls.isEmpty()) {
             tableDefinitionSql.append(String.join(";", commentSqls)).append(";");
@@ -1132,6 +1135,29 @@ public class OpenGaussSource extends SourceDatabase {
 
     private String filterDefaultNextval(String createTableSql) {
         return createTableSql.replaceAll("DEFAULT nextval\\('\\w+\\.?\\w+'::regclass\\)", "");
+    }
+
+    private String filterForeignKey(String createTableSql) {
+        String[] lines = createTableSql.split("\n");
+        String resultSql = lines[0];
+        String preLine = "";
+        String line = "";
+        for (int i = 1; i < lines.length; i++) {
+            line = lines[i];
+            if (line.contains("CONSTRAINT") && line.contains("FOREIGN KEY")) {
+                if (!line.endsWith(",") && preLine.endsWith(",")) {
+                    preLine = preLine.substring(0, preLine.length() - 1);
+                }
+            } else {
+                resultSql = resultSql.concat(preLine).concat("\n");
+                preLine = line;
+            }
+
+            if (i == lines.length - 1) {
+                resultSql = resultSql.concat(preLine);
+            }
+        }
+        return resultSql;
     }
 
     private String combineInheritsDdl(String createTableSql, String inheritsDdl) {
