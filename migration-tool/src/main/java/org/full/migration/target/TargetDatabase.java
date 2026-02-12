@@ -627,7 +627,6 @@ public class TargetDatabase {
             if (tableIndex.isHasFilter() && StringUtils.isNotEmpty(tableIndex.getFilterDefinition())) {
                 builder.append(" WHERE ").append(tableIndex.getFilterDefinition());
             }
-            LOGGER.error("create index SQL : {}", builder);
             return Optional.of(builder.toString());
         }
         return Optional.empty();
@@ -652,6 +651,12 @@ public class TargetDatabase {
             createIndexTemp = "CREATE INDEX %s ON %s.%s USING gist (%s)";
         } else {
             createIndexTemp = "CREATE INDEX %s ON %s.%s (%s)";
+        }
+        String indexRange = tableIndex.getIndexRange().toUpperCase(Locale.ROOT);
+        if ("LOCAL".equals(indexRange)) {
+            createIndexTemp += " LOCAL";
+        } else if ("GLOBAL".equals(indexRange)) {
+            createIndexTemp += " GLOBAL";
         }
         return Optional.of(createIndexTemp);
     }

@@ -175,46 +175,61 @@ public final class OpenGaussConstants {
     /**
      * sql for querying indexes
      */
-    public static final String QUERY_INDEX_SQL = "SELECT\n"
-        + "  i.relname AS index_name,\n"
-        + "  am.amname AS type_desc,\n"
-        + "  CASE\n"
-        + "      WHEN idx.indisunique THEN true\n"
-        + "      ELSE false\n"
-        + "  END AS is_unique,\n"
-        + "  CASE\n"
-        + "      WHEN idx.indisprimary THEN true\n"
-        + "      ELSE false\n"
-        + "  END AS is_primary_key,\n"
-        + "  CASE\n"
-        + "      WHEN idx.indpred IS NOT NULL THEN true\n"
-        + "      ELSE false\n"
-        + "  END AS has_filter,\n"
-        + "  CASE\n"
-        + "      WHEN idx.indpred IS NOT NULL THEN pg_get_expr(idx.indpred, idx.indrelid)\n"
-        + "      ELSE ''\n"
-        + "  END AS filter_definition,\n"
-        + "  CASE\n"
-        + "      WHEN idx.indexprs IS NOT NULL THEN pg_get_expr(idx.indexprs, idx.indrelid)\n"
-        + "      ELSE ''\n"
-        + "  END AS index_expression,\n"
-        + "  t.relname AS table_name,\n"
-        + "  t.oid AS object_id\n"
-        + "FROM\n"
-        + "  pg_index idx\n"
-        + "JOIN\n"
-        + "  pg_class i ON i.oid = idx.indexrelid\n"
-        + "JOIN\n"
-        + "  pg_class t ON t.oid = idx.indrelid\n"
-        + "JOIN\n"
-        + "  pg_namespace n ON n.oid = t.relnamespace\n"
-        + "JOIN\n"
-        + "  pg_am am ON i.relam = am.oid\n"
-        + "WHERE\n"
-        + "  n.nspname = '%s'\n"
-        + "  AND i.relkind = 'i'\n"
-        + "ORDER BY\n"
-        + "    t.relname, i.relname;";
+    public static final String QUERY_INDEX_SQL = "SELECT DISTINCT\n" +
+            "  i.relname AS index_name,\n" +
+            "  am.amname AS type_desc,\n" +
+            "  CASE\n" +
+            "      WHEN idx.indisunique THEN true\n" +
+            "      ELSE false\n" +
+            "  END AS is_unique,\n" +
+            "  CASE\n" +
+            "      WHEN idx.indisprimary THEN true\n" +
+            "      ELSE false\n" +
+            "  END AS is_primary_key,\n" +
+            "  CASE\n" +
+            "      WHEN idx.indpred IS NOT NULL THEN true\n" +
+            "      ELSE false\n" +
+            "  END AS has_filter,\n" +
+            "  CASE\n" +
+            "      WHEN idx.indpred IS NOT NULL THEN pg_get_expr(idx.indpred, idx.indrelid)\n" +
+            "      ELSE ''\n" +
+            "  END AS filter_definition,\n" +
+            "  CASE\n" +
+            "      WHEN idx.indexprs IS NOT NULL THEN pg_get_expr(idx.indexprs, idx.indrelid)\n" +
+            "      ELSE ''\n" +
+            "  END AS index_expression,\n" +
+            "  t.relname AS table_name,\n" +
+            "  t.oid AS object_id,\n" +
+            "  -- 判断索引作用域：LOCAL / GLOBAL / NON-PARTITIONED\n" +
+            "  CASE\n" +
+            "      WHEN pt.parttype = 'p' THEN\n" +
+            "          CASE\n" +
+            "              WHEN EXISTS (\n" +
+            "                  SELECT 1 \n" +
+            "                  FROM pg_partition ip \n" +
+            "                  WHERE ip.parentid = i.oid\n" +
+            "              ) THEN 'LOCAL'\n" +
+            "              ELSE 'GLOBAL'\n" +
+            "          END\n" +
+            "      ELSE 'NON-PARTITIONED'\n" +
+            "  END AS index_type\n" +
+            "FROM\n" +
+            "  pg_index idx\n" +
+            "JOIN\n" +
+            "  pg_class i ON i.oid = idx.indexrelid\n" +
+            "JOIN\n" +
+            "  pg_class t ON t.oid = idx.indrelid\n" +
+            "JOIN\n" +
+            "  pg_namespace n ON n.oid = t.relnamespace\n" +
+            "JOIN\n" +
+            "  pg_am am ON i.relam = am.oid\n" +
+            "LEFT JOIN\n" +
+            "  pg_partition pt ON pt.parentid = t.oid AND pt.parttype = 'p'\n" +
+            "WHERE\n" +
+            "  n.nspname = '%s'\n" +
+            "  AND (i.relkind = 'i' OR i.relkind = 'I')\n" +
+            "ORDER BY\n" +
+            "  t.relname, i.relname;";
 
     /**
      * sql for querying cols of index

@@ -40,6 +40,7 @@ public class TableIndex {
     private boolean hasFilter;
     private String filterDefinition;
     private String indexprs;
+    private String indexRange;
 
     /**
      * Constructor
@@ -55,5 +56,6 @@ public class TableIndex {
         this.isPrimaryKey = rs.getBoolean("is_primary_key");
         this.hasFilter = rs.getBoolean("has_filter");
         this.filterDefinition = rs.getString("filter_definition");
+        this.indexRange = rs.getString("index_type");
     }
 }
