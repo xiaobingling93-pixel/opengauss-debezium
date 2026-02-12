@@ -647,7 +647,7 @@ public class TargetDatabase {
                 : "CREATE INDEX %s ON %s.%s USING btree (%s)";
         } else if ("FULLTEXT".equals(indexType) || "XML".equalsIgnoreCase(indexType)) {
             createIndexTemp = "CREATE INDEX %s ON %s.%s USING gin (%s gin_trgm_ops)";
-        } else if ("SPATIAL".equals(indexType)) {
+        } else if ("GIST".equals(indexType) || "SPATIAL".equals(indexType)) {
             createIndexTemp = "CREATE INDEX %s ON %s.%s USING gist (%s)";
         } else {
             createIndexTemp = "CREATE INDEX %s ON %s.%s (%s)";
