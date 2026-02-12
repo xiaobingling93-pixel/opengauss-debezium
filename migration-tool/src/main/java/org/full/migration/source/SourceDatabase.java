@@ -232,7 +232,7 @@ public abstract class SourceDatabase {
      * @return sql for querying object point
      * @throws IllegalArgumentException IllegalArgumentException
      */
-    protected abstract String getQueryObjectSql(String objectType, Connection connection) throws IllegalArgumentException;
+    protected abstract String getQueryObjectSql(String objectType) throws IllegalArgumentException;
 
     /**
      * convertDefinition
@@ -708,7 +708,7 @@ public abstract class SourceDatabase {
     public void readObjects(String objectType, String schema) {
         try (Connection conn = connection.getConnection(sourceConfig.getDbConn());
             Statement statement = conn.createStatement()) {
-            String querySql = String.format(getQueryObjectSql(objectType.toLowerCase(Locale.ROOT), conn), schema);
+            String querySql = String.format(getQueryObjectSql(objectType.toLowerCase(Locale.ROOT)), schema);
             ResultSet rs = statement.executeQuery(querySql);
             while (rs.next()) {
                 DbObject dbObject = new DbObject();
