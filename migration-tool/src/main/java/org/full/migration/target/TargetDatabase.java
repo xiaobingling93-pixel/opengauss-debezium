@@ -627,6 +627,7 @@ public class TargetDatabase {
             if (tableIndex.isHasFilter() && StringUtils.isNotEmpty(tableIndex.getFilterDefinition())) {
                 builder.append(" WHERE ").append(tableIndex.getFilterDefinition());
             }
+            LOGGER.error("create index SQL : {}", builder);
             return Optional.of(builder.toString());
         }
         return Optional.empty();
