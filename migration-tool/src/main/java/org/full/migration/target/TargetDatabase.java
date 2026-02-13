@@ -652,6 +652,12 @@ public class TargetDatabase {
         } else {
             createIndexTemp = "CREATE INDEX %s ON %s.%s (%s)";
         }
+        String indexRange = tableIndex.getIndexRange().toUpperCase(Locale.ROOT);
+        if ("LOCAL".equals(indexRange)) {
+            createIndexTemp += " LOCAL";
+        } else if ("GLOBAL".equals(indexRange)) {
+            createIndexTemp += " GLOBAL";
+        }
         return Optional.of(createIndexTemp);
     }
 
