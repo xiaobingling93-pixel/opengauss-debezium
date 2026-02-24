@@ -27,6 +27,7 @@ import org.full.migration.model.object.DbObject;
 import org.full.migration.model.PostgresCustomTypeMeta;
 import org.full.migration.model.TaskTypeEnum;
 import org.full.migration.model.config.GlobalConfig;
+import org.full.migration.model.object.Procedure;
 import org.full.migration.model.object.Sequence;
 import org.full.migration.model.object.View;
 import org.full.migration.model.table.Column;
@@ -990,8 +991,6 @@ public class OpenGaussSource extends SourceDatabase {
                 return OpenGaussConstants.QUERY_FUNCTION_SQL;
             case TRIGGER:
                 return OpenGaussConstants.QUERY_TRIGGER_SQL;
-            case PROCEDURE:
-                return OpenGaussConstants.QUERY_PROCEDURE_SQL;
             default:
                 LOGGER.error(
                         "objectType {} is invalid, please check the object of migration in [view, function, trigger, "
@@ -1230,7 +1229,6 @@ public class OpenGaussSource extends SourceDatabase {
         switch (taskTypeEnum) {
             case FUNCTION:
             case TRIGGER:
-            case PROCEDURE:
                 super.readObjects(objectType, schema);
                 break;
             case VIEW:
@@ -1239,10 +1237,71 @@ public class OpenGaussSource extends SourceDatabase {
             case SEQUENCE:
                 readSequence(schema);
                 break;
+            case PROCEDURE:
+                readProcedure(schema);
+                break;
             default:
                 LOGGER.error("Object type '{}' is invalid, please check the object of migration in [view, function, "
                         + "trigger, procedure, sequence]", objectType);
                 throw new IllegalArgumentException("Object type '" + objectType + "' is an unsupported type.");
+        }
+    }
+
+    private void readProcedure(String schema) {
+        try (Connection connection = this.connection.getConnection(sourceConfig.getDbConn())) {
+            List<Procedure> procedureList = searchProcedure(connection, schema);
+            searchProcedureDefinition(connection, procedureList);
+
+            for (Procedure procedure : procedureList) {
+                String name = procedure.getName();
+                LOGGER.info("Read procedure: {}.{}", schema, name);
+                DbObject dbObject = new DbObject();
+                dbObject.setSchema(schema);
+                dbObject.setName(name);
+                dbObject.setDefinition(procedure.getDefinition());
+
+                QueueManager.getInstance().putToQueue(QueueManager.OBJECT_QUEUE, dbObject);
+                if (isDumpJson) {
+                    ProgressTracker.getInstance().putProgressMap(schema, name);
+                }
+            }
+            if (isDumpJson) {
+                ProgressTracker.getInstance().recordObjectProgress(TaskTypeEnum.PROCEDURE);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to read procedure, schema: {}", schema, e);
+        }
+        QueueManager.getInstance().setReadFinished(QueueManager.OBJECT_QUEUE, true);
+    }
+
+    private List<Procedure> searchProcedure(Connection connection, String schema) throws SQLException {
+        List<Procedure> procedures = new ArrayList<>();
+        try (PreparedStatement preStatement = connection.prepareStatement(OpenGaussConstants.QUERY_PROCEDURE_SQL)) {
+            preStatement.setString(1, schema);
+            try (ResultSet resultSet = preStatement.executeQuery()) {
+                while (resultSet.next()) {
+                    Procedure procedure = new Procedure();
+                    procedure.setSchema(schema);
+                    procedure.setName(resultSet.getString("name"));
+                    procedure.setOId(resultSet.getLong("oid"));
+                    procedures.add(procedure);
+                }
+            }
+        }
+        return procedures;
+    }
+
+    private void searchProcedureDefinition(Connection conn, List<Procedure> procedures)
+            throws SQLException {
+        try (PreparedStatement preStatement = conn.prepareStatement(OpenGaussConstants.SELECT_PG_GET_FUNCTION_DEF)) {
+            for (Procedure procedure : procedures) {
+                preStatement.setLong(1, procedure.getOId());
+                try (ResultSet resultSet = preStatement.executeQuery()) {
+                    while (resultSet.next()) {
+                        procedure.setDefinition(resultSet.getString("definition"));
+                    }
+                }
+            }
         }
     }
 
