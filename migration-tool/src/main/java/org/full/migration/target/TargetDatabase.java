@@ -615,12 +615,22 @@ public class TargetDatabase {
     private Optional<String> getCreateIndexSql(TableIndex tableIndex) {
         Optional<String> indexSqlTempOptional = getIndexSqlTemp(tableIndex);
         if (indexSqlTempOptional.isPresent()) {
-            StringBuilder builder = new StringBuilder(
-                    String.format(indexSqlTempOptional.get(),
-                            DatabaseUtils.formatObjName(tableIndex.getIndexName()),
-                            DatabaseUtils.formatObjName(tableIndex.getSchemaName()),
-                            DatabaseUtils.formatObjName(tableIndex.getTableName()),
-                            StringUtils.isEmpty(tableIndex.getIndexprs()) ? tableIndex.getColumnName() : tableIndex.getIndexprs()));
+            StringBuilder builder;
+            if (!tableIndex.isConstraint()) {
+                builder = new StringBuilder(
+                        String.format(indexSqlTempOptional.get(),
+                                DatabaseUtils.formatObjName(tableIndex.getIndexName()),
+                                DatabaseUtils.formatObjName(tableIndex.getSchemaName()),
+                                DatabaseUtils.formatObjName(tableIndex.getTableName()),
+                                StringUtils.isEmpty(tableIndex.getIndexprs()) ? tableIndex.getColumnName() : tableIndex.getIndexprs()));
+            } else {
+                builder = new StringBuilder(
+                        String.format(indexSqlTempOptional.get(),
+                                DatabaseUtils.formatObjName(tableIndex.getSchemaName()),
+                                DatabaseUtils.formatObjName(tableIndex.getTableName()),
+                                DatabaseUtils.formatObjName(tableIndex.getIndexName()),
+                                StringUtils.isEmpty(tableIndex.getIndexprs()) ? tableIndex.getColumnName() : tableIndex.getIndexprs()));
+            }
             if (StringUtils.isNotEmpty(tableIndex.getIncludedColumns())) {
                 builder.append(" INCLUDE (").append(tableIndex.getIncludedColumns()).append(")");
             }
@@ -641,10 +651,14 @@ public class TargetDatabase {
                 tableIndex.getIndexType());
             return Optional.empty();
         }
-        if ("CLUSTERED".equals(indexType) || "NONCLUSTERED".equals(indexType)) {
-            createIndexTemp = tableIndex.isUnique()
-                ? "CREATE UNIQUE INDEX %s ON %s.%s USING btree (%s)"
-                : "CREATE INDEX %s ON %s.%s USING btree (%s)";
+        if ("CLUSTERED".equals(indexType) || "NONCLUSTERED".equals(indexType) || "BTREE".equals(indexType)) {
+            if (tableIndex.isUnique()) {
+                createIndexTemp = tableIndex.isConstraint()
+                        ? "alter table %s.%s add constraint %s unique(%s)"
+                        : "CREATE UNIQUE INDEX %s ON %s.%s USING btree (%s)";
+            } else {
+                createIndexTemp = "CREATE INDEX %s ON %s.%s USING btree (%s)";
+            }
         } else if ("FULLTEXT".equals(indexType) || "XML".equalsIgnoreCase(indexType)) {
             createIndexTemp = "CREATE INDEX %s ON %s.%s USING gin (%s gin_trgm_ops)";
         } else if ("GIST".equals(indexType) || "SPATIAL".equals(indexType)) {
@@ -653,10 +667,12 @@ public class TargetDatabase {
             createIndexTemp = "CREATE INDEX %s ON %s.%s (%s)";
         }
         String indexRange = tableIndex.getIndexRange().toUpperCase(Locale.ROOT);
-        if ("LOCAL".equals(indexRange)) {
-            createIndexTemp += " LOCAL";
-        } else if ("GLOBAL".equals(indexRange)) {
-            createIndexTemp += " GLOBAL";
+        if (!tableIndex.isConstraint()) {
+            if ("LOCAL".equals(indexRange)) {
+                createIndexTemp += " LOCAL";
+            } else if ("GLOBAL".equals(indexRange)) {
+                createIndexTemp += " GLOBAL";
+            }
         }
         return Optional.of(createIndexTemp);
     }

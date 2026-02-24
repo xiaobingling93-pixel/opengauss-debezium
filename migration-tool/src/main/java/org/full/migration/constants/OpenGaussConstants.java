@@ -246,6 +246,17 @@ public final class OpenGaussConstants {
         + "ORDER BY a.attnum;";
 
     /**
+     * sql for querying whether the unique index is unique constraint
+     */
+    public static final String QUERY_CONSTRAINTS_SQL = "SELECT COUNT(*) AS constraint_count\n" +
+            "FROM pg_constraint con\n" +
+            "JOIN pg_class c ON con.conrelid = c.oid\n" +
+            "JOIN pg_namespace n ON c.relnamespace = n.oid\n" +
+            "WHERE n.nspname = '%s'     \n" +
+            "  AND con.conname = '%s'            \n" +
+            "  AND con.contype = 'u';";
+
+    /**
      * sql for querying primary keys
      */
     public static final String QUERY_PRIMARY_KEY_SQL = "SELECT\n"

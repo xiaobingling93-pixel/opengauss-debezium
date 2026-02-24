@@ -41,6 +41,7 @@ public class TableIndex {
     private String filterDefinition;
     private String indexprs;
     private String indexRange;
+    private boolean isConstraint;
 
     /**
      * Constructor

@@ -262,6 +262,9 @@ public abstract class SourceDatabase {
      */
     protected abstract TableIndex getTableIndex(Connection conn, ResultSet rs) throws SQLException;
 
+    protected abstract void confirmUniqueConstraint(Connection conn, String schema, TableIndex tableIndex)
+            throws SQLException;
+
     /**
      * getQueryPkSql
      *
@@ -746,6 +749,7 @@ public abstract class SourceDatabase {
                         if (isNotNeedMigraTable(schema, tableIndex.getTableName(), conn)) {
                             continue;
                         }
+                        confirmUniqueConstraint(conn, schema, tableIndex);
                         tableIndex.setSchemaName(sourceConfig.getSchemaMappings().get(schema));
                         if (!tableIndex.isPrimaryKey()) {
                             QueueManager.getInstance().putToQueue(QueueManager.TABLE_INDEX_QUEUE, tableIndex);

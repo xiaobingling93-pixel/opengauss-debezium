@@ -1065,6 +1065,11 @@ public class PostgresSource extends SourceDatabase {
     }
 
     @Override
+    protected void confirmUniqueConstraint(Connection conn, String schema, TableIndex tableIndex) throws SQLException {
+
+    }
+
+    @Override
     protected String getQueryPkSql() {
         return PostgresSqlConstants.QUERY_PRIMARY_KEY_SQL;
     }
