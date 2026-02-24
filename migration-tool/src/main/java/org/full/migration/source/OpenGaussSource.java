@@ -28,6 +28,7 @@ import org.full.migration.model.PostgresCustomTypeMeta;
 import org.full.migration.model.TaskTypeEnum;
 import org.full.migration.model.config.GlobalConfig;
 import org.full.migration.model.object.Sequence;
+import org.full.migration.model.object.View;
 import org.full.migration.model.table.Column;
 import org.full.migration.model.table.GenerateInfo;
 import org.full.migration.model.table.Table;
@@ -981,12 +982,10 @@ public class OpenGaussSource extends SourceDatabase {
     }
 
     @Override
-    protected String getQueryObjectSql(String objectType, Connection conn) throws IllegalArgumentException {
+    protected String getQueryObjectSql(String objectType) throws IllegalArgumentException {
         TaskTypeEnum taskTypeEnum = TaskTypeEnum.getTaskTypeEnum(objectType);
 
         switch (taskTypeEnum) {
-            case VIEW:
-                return OpenGaussConstants.QUERY_VIEW_SQL;
             case FUNCTION:
                 return OpenGaussConstants.QUERY_FUNCTION_SQL;
             case TRIGGER:
@@ -1003,10 +1002,7 @@ public class OpenGaussSource extends SourceDatabase {
 
     @Override
     protected String convertDefinition(String objectType, ResultSet rs) throws SQLException {
-        if (TaskTypeEnum.VIEW.getTaskType().equalsIgnoreCase(objectType)) {
-            return String.format(Locale.ROOT, "CREATE VIEW %s AS %s",
-                    rs.getString("name"), rs.getString("definition"));
-        } else if (TaskTypeEnum.TRIGGER.getTaskType().equalsIgnoreCase(objectType)) {
+        if (TaskTypeEnum.TRIGGER.getTaskType().equalsIgnoreCase(objectType)) {
             return rs.getString("definition").replaceAll("DEFINER\\s*=\\s*\\w+\\s*", "");
         } else {
             return rs.getString("definition");
@@ -1212,6 +1208,13 @@ public class OpenGaussSource extends SourceDatabase {
                     sqlResult = resultSet.getString(1);
                 }
             }
+        } catch (SQLException e) {
+            if (e.getMessage().contains("Not a ordinary table or foreign table.")) {
+                LOGGER.warn("Select table is not a ordinary table or foreign table, table: {}", fullName);
+                return Optional.empty();
+            } else {
+                throw e;
+            }
         }
 
         if (StringUtils.isEmpty(sqlResult)) {
@@ -1225,11 +1228,13 @@ public class OpenGaussSource extends SourceDatabase {
     public void readObjects(String objectType, String schema) {
         TaskTypeEnum taskTypeEnum = TaskTypeEnum.getTaskTypeEnum(objectType);
         switch (taskTypeEnum) {
-            case VIEW:
             case FUNCTION:
             case TRIGGER:
             case PROCEDURE:
                 super.readObjects(objectType, schema);
+                break;
+            case VIEW:
+                readView(schema);
                 break;
             case SEQUENCE:
                 readSequence(schema);
@@ -1239,6 +1244,66 @@ public class OpenGaussSource extends SourceDatabase {
                         + "trigger, procedure, sequence]", objectType);
                 throw new IllegalArgumentException("Object type '" + objectType + "' is an unsupported type.");
         }
+    }
+
+    private void readView(String schema) {
+        try (Connection conn = connection.getConnection(sourceConfig.getDbConn())) {
+            List<View> viewList = searchView(conn, schema);
+            for (View view : viewList) {
+                String name = view.getName();
+                LOGGER.info("Read view: {}.{}", schema, name);
+                DbObject dbObject = new DbObject();
+                dbObject.setSchema(schema);
+                dbObject.setName(name);
+                dbObject.setDefinition(generateViewDefinition(view));
+
+                QueueManager.getInstance().putToQueue(QueueManager.OBJECT_QUEUE, dbObject);
+                if (isDumpJson) {
+                    ProgressTracker.getInstance().putProgressMap(schema, name);
+                }
+            }
+            if (isDumpJson) {
+                ProgressTracker.getInstance().recordObjectProgress(TaskTypeEnum.VIEW);
+            }
+        } catch (Exception e) {
+            LOGGER.error("Failed to read view, schema: {}", schema, e);
+        }
+        QueueManager.getInstance().setReadFinished(QueueManager.OBJECT_QUEUE, true);
+    }
+
+    private List<View> searchView(Connection conn, String schema) throws SQLException {
+        try (PreparedStatement preStatement = conn.prepareStatement(OpenGaussConstants.QUERY_ALL_VIEW_SQL)) {
+            preStatement.setString(1, schema);
+            try (ResultSet resultSet = preStatement.executeQuery()) {
+                List<View> viewList = new ArrayList<>();
+                while (resultSet.next()) {
+                    View view = new View();
+                    view.setSchema(resultSet.getString("schema"));
+                    view.setName(resultSet.getString("name"));
+                    view.setMaterialized("m".equals(resultSet.getString("view_type")));
+                    view.setIncremental(resultSet.getBoolean("isIncremental"));
+                    view.setDefinition(resultSet.getString("definition"));
+                    viewList.add(view);
+                }
+                return viewList;
+            }
+        }
+    }
+
+    private String generateViewDefinition(View view) {
+        StringBuilder stringBuilder = new StringBuilder("CREATE ");
+        if (view.isMaterialized()) {
+            if (view.isIncremental()) {
+                stringBuilder.append("INCREMENTAL ");
+            }
+            stringBuilder.append("MATERIALIZED ");
+        }
+        stringBuilder.append("VIEW ")
+                .append(view.getName())
+                .append(" AS ")
+                .append(view.getDefinition())
+                .append(";");
+        return stringBuilder.toString();
     }
 
     private void readSequence(String schema) {

@@ -388,7 +388,7 @@ public class SqlServerSource extends SourceDatabase {
     }
 
     @Override
-    protected String getQueryObjectSql(String objectType, Connection conn) throws IllegalArgumentException {
+    protected String getQueryObjectSql(String objectType) throws IllegalArgumentException {
         switch (objectType) {
             case "view":
                 return SqlServerSqlConstants.QUERY_VIEW_SQL;

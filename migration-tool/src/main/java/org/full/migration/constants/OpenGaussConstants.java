@@ -433,10 +433,21 @@ public final class OpenGaussConstants {
         + "WHERE n.nspname = ? AND c.relname = ? AND c.relname != p.relname;\n";
 
     /**
-     * sql for querying views
+     * sql for querying all views: view, materialized view
      */
-    public static final String QUERY_VIEW_SQL =
-            "SELECT viewname AS name, definition FROM pg_views WHERE schemaname = '%s';";
+    public static final String QUERY_ALL_VIEW_SQL = """
+            SELECT
+                n.nspname AS schema,
+                c.relname AS name,
+            	c.relkind AS view_type,
+            	mv.ivm AS isIncremental,
+                pg_get_viewdef(c.oid, true) AS definition
+            FROM pg_class c
+            JOIN pg_namespace n ON c.relnamespace = n.oid
+            LEFT JOIN gs_matview mv ON c.oid = mv.matviewid
+            WHERE n.nspname = ?
+                AND c.relkind IN ('v', 'm');
+            """;
 
     /**
      * sql for querying functions
