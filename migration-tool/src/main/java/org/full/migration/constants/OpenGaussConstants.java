@@ -474,13 +474,20 @@ public final class OpenGaussConstants {
     /**
      * sql for querying procedures
      */
-    public static final String QUERY_PROCEDURE_SQL = "SELECT p.proname AS name,\n"
-        + "       pg_get_functiondef(p.oid) AS definition\n"
-        + "FROM pg_proc p\n"
-        + "JOIN pg_namespace n ON p.pronamespace = n.oid\n"
-        + "WHERE n.nspname = '%s'\n"
-        + "  AND p.prokind = 'p'  -- 'p'表示procedure(存储过程)\n"
-        + "  AND n.nspname NOT IN ('pg_catalog', 'information_schema');  ";
+    public static final String QUERY_PROCEDURE_SQL = """
+            SELECT p.proname AS name,
+                   p.oid AS oid
+            FROM pg_proc p
+            JOIN pg_namespace n ON p.pronamespace = n.oid
+            WHERE n.nspname = ?
+              AND p.prokind = 'p'  -- 'p'表示procedure(存储过程)
+              AND n.nspname NOT IN ('pg_catalog', 'information_schema');
+            """;
+
+    /**
+     * sql for querying procedure definition
+     */
+    public static final String SELECT_PG_GET_FUNCTION_DEF = "select definition from pg_get_functiondef(?);";
 
     /**
      * sql for querying all sequences
