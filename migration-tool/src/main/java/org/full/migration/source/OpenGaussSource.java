@@ -1032,6 +1032,19 @@ public class OpenGaussSource extends SourceDatabase {
     }
 
     @Override
+    protected void confirmUniqueConstraint(Connection conn, String schema, TableIndex tableIndex) throws SQLException {
+        if (tableIndex.isUnique()) {
+            try (Statement stmt = conn.createStatement();
+                 ResultSet constraintRs = stmt.executeQuery(String.format(OpenGaussConstants.QUERY_CONSTRAINTS_SQL,
+                         schema, tableIndex.getIndexName()))) {
+                while (constraintRs.next()) {
+                    tableIndex.setConstraint(constraintRs.getInt(1) > 0);
+                }
+            }
+        }
+    }
+
+    @Override
     protected String getQueryPkSql() {
         return OpenGaussConstants.QUERY_PRIMARY_KEY_SQL;
     }

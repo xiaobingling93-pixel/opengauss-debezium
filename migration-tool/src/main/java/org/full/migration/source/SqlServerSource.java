@@ -477,6 +477,11 @@ public class SqlServerSource extends SourceDatabase {
     }
 
     @Override
+    protected void confirmUniqueConstraint(Connection conn, String schema, TableIndex tableIndex) throws SQLException {
+
+    }
+
+    @Override
     protected String getQueryPkSql() {
         return SqlServerSqlConstants.QUERY_PRIMARY_KEY_SQL;
     }
