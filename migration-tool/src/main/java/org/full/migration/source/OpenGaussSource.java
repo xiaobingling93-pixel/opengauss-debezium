@@ -252,6 +252,9 @@ public class OpenGaussSource extends SourceDatabase {
             try (ResultSet rs = stmt.executeQuery()) {
                 while (rs.next()) {
                     String compositeTypeName = rs.getString("type_name");
+                    if (compositeTypeName.contains(".")) {
+                        continue;
+                    }
                     String typeDefinition = rs.getString("type_definition");
                     String typeComment = rs.getString("type_comment");
 
