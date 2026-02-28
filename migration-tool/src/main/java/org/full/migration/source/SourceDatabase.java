@@ -580,17 +580,9 @@ public abstract class SourceDatabase {
             }
             TableData tableData = new TableData(table, FileUtils.getCurrentFilePath(table, tableCsvPath, fileIndex),
                     snapshotPoint, new SliceInfo(fileIndex, totalSlice, rowCount, true));
-            if (rowCount == 0) {
-                String filePath = FileUtils.getCurrentFilePath(table, tableCsvPath, fileIndex - 1);
-                SliceInfo sliceInfo = new SliceInfo(fileIndex - 1, totalSlice, pageRows, true);
-                tableData.setDataPath(filePath);
-                tableData.setSliceInfo(sliceInfo);
-                updateTableDataQueue(tableData);
-            } else {
-                writer.flush();
-                writer.close();
-                updateTableDataQueue(tableData);
-            }
+            writer.flush();
+            writer.close();
+            updateTableDataQueue(tableData);
         } catch (IOException e) {
             LOGGER.error("write csv file has occurred an IOException, error message:{}", e.getMessage());
         } finally {
