@@ -124,37 +124,60 @@ public class ProgressTracker {
     }
 
     private void reportKeyAndIndexProgress(TaskTypeEnum keyAndIndexType) {
+        doReportKeyAndIndexProgress(keyAndIndexType);
+        if (isTaskStop.get()) {
+            fullProgressReportService.shutdown();
+            doReportKeyAndIndexProgress(keyAndIndexType);
+            LOGGER.info("{} migration complete. full report thread is close.", keyAndIndexType.getTaskType());
+        }
+    }
+
+    private void doReportKeyAndIndexProgress(TaskTypeEnum keyAndIndexType) {
         MigrationProgressInfo migrationProgressInfo = new MigrationProgressInfo();
         for (Map.Entry<String, ProgressInfo> tableProgress : progressMap.entrySet()) {
             ProgressInfo progressInfo = tableProgress.getValue();
             migrationProgressInfo.addKeyAndIndex(progressInfo, keyAndIndexType);
         }
         FileUtils.writeToFile(file, JSON.toJSONString(migrationProgressInfo));
-        if (isTaskStop.get()) {
-            fullProgressReportService.shutdown();
-            LOGGER.info("{} migration complete. full report thread is close.", keyAndIndexType.getTaskType());
-        }
     }
 
     private void reportObjectProgress(TaskTypeEnum objectType) {
+        doReportObjectProgress(objectType);
+        if (isTaskStop.get()) {
+            fullProgressReportService.shutdown();
+            doReportObjectProgress(objectType);
+            LOGGER.info("{} migration complete. full report thread is close.", objectType.getTaskType());
+        }
+    }
+
+    private void doReportObjectProgress(TaskTypeEnum objectType) {
         MigrationProgressInfo migrationProgressInfo = new MigrationProgressInfo();
         for (Map.Entry<String, ProgressInfo> tableProgress : progressMap.entrySet()) {
             ProgressInfo progressInfo = tableProgress.getValue();
             migrationProgressInfo.addObject(progressInfo, objectType);
         }
         FileUtils.writeToFile(file, JSON.toJSONString(migrationProgressInfo));
-        if (isTaskStop.get()) {
-            fullProgressReportService.shutdown();
-            LOGGER.info("{} migration complete. full report thread is close.", objectType.getTaskType());
-        }
     }
 
     private void reportTableProgress() {
+        doReportTableProgress();
+        if (isTaskStop.get()) {
+            fullProgressReportService.shutdown();
+            doReportTableProgress();
+            LOGGER.info("table migration complete. full report thread is close.");
+        }
+    }
+
+    private void doReportTableProgress() {
         MigrationProgressInfo migrationProgressInfo = new MigrationProgressInfo();
         long totalRecord = 0L;
         double totalData = 0;
         for (Map.Entry<String, ProgressInfo> tableProgress : progressMap.entrySet()) {
             ProgressInfo progressInfo = tableProgress.getValue();
+            if (progressInfo.getStatus() == ProgressStatus.IN_MIGRATED.getCode()
+                    && Float.compare(progressInfo.getPercent(), 1.0f) == 0) {
+                progressInfo.setStatus(ProgressStatus.MIGRATED_COMPLETE.getCode());
+            }
             migrationProgressInfo.addTable(progressInfo);
             totalData += progressInfo.getData();
             totalRecord += progressInfo.getRecord();
@@ -163,13 +186,9 @@ public class ProgressTracker {
         int timeInterval = (int) ((currentTime - startTime) / TIME_UNIT);
         BigDecimal speed = new BigDecimal(totalData / (timeInterval * MEMORY_UNIT));
         migrationProgressInfo.setTotal(
-            new TotalInfo(totalRecord, getFormatDouble(new BigDecimal(totalData / MEMORY_UNIT ), 2),
-                timeInterval, getFormatDouble(speed, 2)));
+                new TotalInfo(totalRecord, getFormatDouble(new BigDecimal(totalData / MEMORY_UNIT ), 2),
+                        timeInterval, getFormatDouble(speed, 2)));
         FileUtils.writeToFile(file, JSON.toJSONString(migrationProgressInfo));
-        if (isTaskStop.get()) {
-            fullProgressReportService.shutdown();
-            LOGGER.info("table migration complete. full report thread is close.");
-        }
     }
 
     private double getFormatDouble(BigDecimal decimal, int precision) {
@@ -198,7 +217,7 @@ public class ProgressTracker {
         if (preProgressInfo.getPercent() < progressInfo.getPercent() || preProgressInfo.getName() == null) {
             if (preProgressInfo.getStatus() == ProgressStatus.MIGRATED_FAILURE.getCode()) {
                 progressInfo.setStatus(ProgressStatus.MIGRATED_FAILURE.getCode());
-                progressInfo.setError(preProgressInfo.getError() + File.separator + preProgressInfo.getError());
+                progressInfo.setError(preProgressInfo.getError() + File.separator + progressInfo.getError());
             }
             progressInfo.setPercent(
                 progressInfo.getPercent() > 1 ? preProgressInfo.getPercent() : progressInfo.getPercent());
