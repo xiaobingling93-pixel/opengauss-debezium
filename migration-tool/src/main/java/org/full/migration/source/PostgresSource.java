@@ -1020,7 +1020,7 @@ public class PostgresSource extends SourceDatabase {
                         isCycling ? "CYCLE" : "NOCYCLE", cacheSize, rs.getString("name"), currentValue);
             }
         } else if (TaskTypeEnum.VIEW.getTaskType().equalsIgnoreCase(objectType)) {
-            return String.format(Locale.ROOT, "CREATE VIEW %s AS %s", DatabaseUtils.formatObjName(rs.getString("name")), DatabaseUtils.formatObjName(rs.getString("definition")));
+            return String.format(Locale.ROOT, "CREATE VIEW %s AS %s", DatabaseUtils.formatObjName(rs.getString("name")), rs.getString("definition"));
         }
         return rs.getString("definition");
     }
