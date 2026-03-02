@@ -1019,6 +1019,7 @@ public class OpenGaussSource extends SourceDatabase {
     @Override
     protected TableIndex getTableIndex(Connection conn, ResultSet rs) throws SQLException {
         TableIndex tableIndex = new TableIndex(rs);
+        tableIndex.setIndexRange(rs.getString("index_type"));
         tableIndex.setIndexprs(rs.getString("index_expression"));
         long objectId = rs.getLong("object_id");
         List<String> indexCols = new ArrayList<>();
