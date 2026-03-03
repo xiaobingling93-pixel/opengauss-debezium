@@ -666,7 +666,9 @@ public class TargetDatabase {
         } else {
             createIndexTemp = "CREATE INDEX %s ON %s.%s (%s)";
         }
-        String indexRange = tableIndex.getIndexRange().toUpperCase(Locale.ROOT);
+        String indexRange = tableIndex.getIndexRange() == null
+                ? null
+                : tableIndex.getIndexRange().toUpperCase(Locale.ROOT);
         if (!tableIndex.isConstraint()) {
             if ("LOCAL".equals(indexRange)) {
                 createIndexTemp += " LOCAL";
