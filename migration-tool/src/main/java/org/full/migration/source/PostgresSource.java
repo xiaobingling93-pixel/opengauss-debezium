@@ -1021,6 +1021,11 @@ public class PostgresSource extends SourceDatabase {
             }
         } else if (TaskTypeEnum.VIEW.getTaskType().equalsIgnoreCase(objectType)) {
             return String.format(Locale.ROOT, "CREATE VIEW %s AS %s", DatabaseUtils.formatObjName(rs.getString("name")), rs.getString("definition"));
+        } else if (TaskTypeEnum.PROCEDURE.getTaskType().equalsIgnoreCase(objectType)) {
+            String originDefinition = rs.getString("definition");
+            return originDefinition.replace("LANGUAGE plpgsql", "")
+                    .replaceAll("AS\\s*\\$.*?\\$\\s*BEGIN", "AS BEGIN")
+                    .replaceAll("END;\\s*\\$.*?\\$", "END;");
         }
         return rs.getString("definition");
     }
