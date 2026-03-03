@@ -490,7 +490,7 @@ public final class OpenGaussConstants {
                    p.oid AS oid
             FROM pg_proc p
             JOIN pg_namespace n ON p.pronamespace = n.oid
-            WHERE n.nspname = ?
+            WHERE n.nspname = %s
               AND p.prokind = 'p'  -- 'p'表示procedure(存储过程)
               AND n.nspname NOT IN ('pg_catalog', 'information_schema');
             """;
