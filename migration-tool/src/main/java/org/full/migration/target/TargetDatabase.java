@@ -46,8 +46,11 @@ import org.opengauss.core.BaseConnection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.StringReader;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.math.RoundingMode;
@@ -61,14 +64,14 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Iterator;
 import java.util.Locale;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -367,9 +370,9 @@ public class TargetDatabase {
         String targetSchema = tableTask.getTable().getTargetSchemaName();
         connection.setSchema(targetSchema);
         SliceInfo sliceInfo;
+        CopyManager copyManager = new CopyManager((BaseConnection) connection);
         try (InputStreamReader csvReader = new InputStreamReader(Files.newInputStream(Paths.get(path)),
             StandardCharsets.UTF_8)) {
-            CopyManager copyManager = new CopyManager((BaseConnection) connection);
             String copySql = String.format(COPY_SQL, targetSchema, tableName);
             copyManager.copyIn(copySql, csvReader);
             csvReader.close();
@@ -388,11 +391,13 @@ public class TargetDatabase {
             sliceInfo = tableTask.getSliceInfo();
             progressInfo.setData(calculateProgressData(sliceInfo));
             progressInfo.setRecord(sliceInfo.getRow());
-            progressInfo.setStatus(ProgressStatus.MIGRATED_FAILURE.getCode());
-            progressInfo.setPercent(ProgressStatus.MIGRATED_FAILURE.getCode());
-            progressInfo.setError(e.getMessage());
-            LOGGER.error("failed to copy data of {}.{}, error message:{}", schemaName, tableName, e.getMessage());
-            insertToTable(connection, String.format("%s.%s", targetSchema, tableName), path);
+            boolean isSuccess = copyLineByLine(copyManager, String.format("%s.%s", targetSchema, tableName), path);
+            if (!isSuccess) {
+                progressInfo.setStatus(ProgressStatus.MIGRATED_FAILURE.getCode());
+                progressInfo.setPercent(ProgressStatus.MIGRATED_FAILURE.getCode());
+                progressInfo.setError(e.getMessage());
+                LOGGER.error("failed to copy data of {}.{}, error message:{}", schemaName, tableName, e.getMessage());
+            }
         } finally {
             if (isJsonDump) {
                 sliceInfo = tableTask.getSliceInfo();
@@ -416,33 +421,156 @@ public class TargetDatabase {
             RoundingMode.HALF_UP).doubleValue();
     }
 
-    private void insertToTable(Connection conn, String fullTableName, String csvFile) throws SQLException, IOException {
-        List<String> allLines = Files.readAllLines(Paths.get(csvFile), StandardCharsets.UTF_8);
-        if (allLines.isEmpty()) {
-            throw new IOException(csvFile + "is empty, please check...");
-        }
-        String headers = allLines.get(0);
-        List<String> dataLines = new ArrayList<>(allLines.subList(1, allLines.size()));
-        List<String> failedLines = new ArrayList<>();
-        Iterator<String> iterator = dataLines.iterator();
-        String insertSql = buildInsertSql(fullTableName, headers.split(CommonConstants.DELIMITER));
-        try (PreparedStatement pstmt = conn.prepareStatement(insertSql)) {
-            while (iterator.hasNext()) {
-                String line = iterator.next();
-                try {
-                    String[] values = CSV_SPLIT_PATTERN.split(line, -1);
-                    for (int i = 0; i < values.length; i++) {
-                        String value = values[i].substring(1, values[i].length() - 1).trim();
-                        pstmt.setObject(i + 1, "null".equalsIgnoreCase(value) ? "" : value);
-                    }
-                    pstmt.executeUpdate();
-                } catch (Exception e) {
-                    failedLines.add(line);
+    private boolean copyLineByLine(CopyManager copyManager, String fullName, String csvPath)
+            throws SQLException, IOException {
+        StringBuilder failedLines = new StringBuilder();
+        String header;
+        try (BufferedReader bufferedReader = new BufferedReader(new FileReader(csvPath, StandardCharsets.UTF_8))) {
+            header = bufferedReader.readLine();
+            if (header == null) {
+                throw new IOException("CSV file has no header");
+            }
+
+            int fieldNum = header.split(",").length;
+            StringBuilder fieldBuilder = new StringBuilder();
+            List<String> rowFields = new ArrayList<>();
+            AtomicBoolean inQuotes = new AtomicBoolean(false);
+
+            String csvLine;
+            String tableRow = "";
+            boolean isParseSuccess;
+            while ((csvLine = readLine(bufferedReader)) != null) {
+                isParseSuccess = parseLine(rowFields, fieldBuilder, fieldNum, csvLine, inQuotes);
+                if (!isParseSuccess) {
+                    failedLines.append(tableRow).append(csvLine);
+                } else if (inQuotes.get()) {
+                    tableRow += csvLine;
+                    continue;
+                } else {
+                    copyLine(copyManager, buildCopySql(fullName, header), rowFields, failedLines);
                 }
+
+                fieldBuilder.setLength(0);
+                rowFields = new ArrayList<>();
+                inQuotes.set(false);
+                tableRow = "";
             }
         }
-        // 失败sql重新写入文件
-        writeFailSqlCsv(failedLines, headers, csvFile);
+        if (!failedLines.isEmpty()) {
+            writeFailSqlCsv(Collections.singletonList(failedLines.toString()), header, csvPath);
+            return false;
+        }
+        return true;
+    }
+
+    private void copyLine(CopyManager copyManager, String copySql, List<String> fields, StringBuilder failedLines) {
+        String line = buildCsvLine(fields);
+        try (StringReader stringReader = new StringReader(line)) {
+            copyManager.copyIn(copySql, stringReader);
+        } catch (SQLException | IOException e) {
+            LOGGER.error("Failed to copy data to table, error: {}", e.getMessage());
+            failedLines.append(line).append("\n");
+        }
+    }
+
+    private String buildCsvLine(List<String> fields) {
+        StringBuilder stringBuilder = new StringBuilder();
+        for (String field : fields) {
+            if (field == null) {
+                stringBuilder.append("null").append(CommonConstants.DELIMITER);
+            } else {
+                stringBuilder.append("\"")
+                        .append(field.replaceAll("\"", "\"\""))
+                        .append("\"")
+                        .append(CommonConstants.DELIMITER);
+            }
+        }
+        return stringBuilder.substring(0, stringBuilder.length() - 1);
+    }
+
+    private String buildCopySql(String fullName, String header) {
+        return String.format(
+                "COPY %s (%s) FROM STDIN WITH (FORMAT csv, NULL 'null', QUOTE '\"', DELIMITER ',', ESCAPE '\"')",
+                fullName, header
+        );
+    }
+
+    private boolean parseLine(List<String> rowFields, StringBuilder fieldBuilder, int fieldNum,
+                              String line, AtomicBoolean atomicInQuotes) {
+        String endCRLF = getEndCRLF(line);
+        String lineWithoutCRLF = line.substring(0, line.length() - endCRLF.length());
+
+        char c;
+        boolean inQuotes = atomicInQuotes.get();
+        for (int i = 0; i < lineWithoutCRLF.length(); i++) {
+            c = lineWithoutCRLF.charAt(i);
+            if (c == '"') {
+                // handle quote escaping: two consecutive double quotes represent a single double quote character
+                if (inQuotes && i + 1 < lineWithoutCRLF.length() && lineWithoutCRLF.charAt(i + 1) == '"') {
+                    fieldBuilder.append('"');
+                    i++;
+                } else {
+                    // switch the inQuotes status
+                    inQuotes = !inQuotes;
+                    atomicInQuotes.set(inQuotes);
+
+                    // handle end of line
+                    if (!inQuotes && i == lineWithoutCRLF.length() - 1) {
+                        addField(rowFields, fieldBuilder);
+                    }
+                }
+            } else if (c == ',' && !inQuotes) {
+                addField(rowFields, fieldBuilder);
+            } else if (inQuotes) {
+                fieldBuilder.append(c);
+            } else if (lineWithoutCRLF.startsWith("null,", i) || lineWithoutCRLF.endsWith("null")) {
+                // handle null value
+                rowFields.add(null);
+                i += 4;
+            } else {
+                return false;
+            }
+        }
+
+        if (inQuotes) {
+            if (rowFields.size() < fieldNum) {
+                fieldBuilder.append(endCRLF);
+                return true;
+            }
+        } else {
+            return rowFields.size() == fieldNum;
+        }
+        return false;
+    }
+
+    private void addField(List<String> rowFields, StringBuilder fieldBuilder) {
+        rowFields.add(fieldBuilder.toString());
+        fieldBuilder.setLength(0);
+    }
+
+    private String getEndCRLF(String line) {
+        if (line.endsWith("\r\n")) {
+            return "\r\n";
+        } else if (line.endsWith("\n")) {
+            return "\n";
+        } else {
+            return "";
+        }
+    }
+
+    private String readLine(BufferedReader bufferedReader) throws IOException {
+        StringBuilder line = new StringBuilder();
+        int ch;
+        char c;
+        while ((ch = bufferedReader.read()) != -1) {
+            c = (char) ch;
+            line.append(c);
+
+            if (c == '\n') {
+                break;
+            }
+        }
+        return line.isEmpty() ? null : line.toString();
     }
 
     private void writeFailSqlCsv(List<String> failedLines, String header, String csvFile) throws IOException {
@@ -453,12 +581,6 @@ public class TargetDatabase {
         newContent.add(header);
         newContent.addAll(failedLines);
         Files.write(Paths.get(csvFile), newContent, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-    }
-
-    private String buildInsertSql(String tableName, String[] columns) {
-        String cols = String.join(", ", columns);
-        String placeholders = String.join(", ", Collections.nCopies(columns.length, "?"));
-        return String.format("INSERT INTO %s (%s) VALUES (%s)", tableName, cols, placeholders);
     }
 
     /**
