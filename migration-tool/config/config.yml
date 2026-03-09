@@ -55,8 +55,8 @@ sourceConfig:
   isMoneyMigrate: true
   # 是否迁移源库的默认值到openGauss
   isMigrateDefaultValue: Yes
-  # 是否记录快照
-  isRecordSnapshot: Yes
+  # 是否记录快照，配合增量迁移时使用，默认值为false
+  isRecordSnapshot: false
   # postgres逻辑复制槽名称
   slotName: "test_slot"
   # 创建逻辑复制槽插件名称(版本大于10时优选pgoutput，wal2json次之)
