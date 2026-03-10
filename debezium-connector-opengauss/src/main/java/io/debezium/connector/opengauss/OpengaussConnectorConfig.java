@@ -1577,11 +1577,36 @@ public class OpengaussConnectorConfig extends RelationalDatabaseConnectorConfig 
         Connection connection = null;
         try {
             connection = DriverManager.getConnection(sourceURL, user(), password());
+            alterSqlMode(connection);
             alertWalSenderTimeOut(connection);
         } catch(Exception exp) {
             LOGGER.error("{}Create openGauss connection failed.", ErrorCode.DB_CONNECTION_EXCEPTION, exp);
         }
         return connection;
+    }
+
+    private void alterSqlMode(Connection connection) {
+        try (Statement statement = connection.createStatement()) {
+            ResultSet compatibilityRes = statement.executeQuery("show sql_compatibility");
+            if (compatibilityRes.next()) {
+                String mode = compatibilityRes.getString(1);
+                if (!"B".equalsIgnoreCase(mode.trim())) {
+                    return;
+                }
+                ResultSet modeRes = statement.executeQuery("show dolphin.sql_mode");
+                String sqlMode = "";
+                if (modeRes.next()) {
+                    sqlMode = modeRes.getString(1).trim();
+                }
+                if (sqlMode.contains("ansi_quotes")) {
+                    return;
+                }
+                sqlMode += "".equals(sqlMode) ? "ansi_quotes" : ",ansi_quotes";
+                statement.executeUpdate(String.format("set dolphin.sql_mode='%s'", sqlMode));
+            }
+        } catch (SQLException e) {
+            LOGGER.warn("Parameter: dolphin.sql_mode, setting failed.");
+        }
     }
 
     private void alertWalSenderTimeOut(Connection connection) {
