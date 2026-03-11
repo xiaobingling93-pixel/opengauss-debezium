@@ -17,10 +17,9 @@ package org.full.migration.model.config;
 
 import lombok.Data;
 
-import java.util.List;
-
 import javax.validation.Valid;
 import javax.validation.constraints.NotNull;
+import java.util.List;
 
 /**
  * GlobalConfig
@@ -52,4 +51,10 @@ public class GlobalConfig {
     @NotNull(message = "This parameter is required")
     @Valid
     private SourceConfig sourceConfig;
+    /**
+     * 目标数据库类型，如：opengauss, ograc
+     */
+    private String targetType;
+
+    private DataXParamConfig datax;
 }

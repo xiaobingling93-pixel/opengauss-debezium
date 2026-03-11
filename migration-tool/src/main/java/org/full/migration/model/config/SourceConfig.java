@@ -16,7 +16,6 @@
 package org.full.migration.model.config;
 
 import lombok.Data;
-
 import org.apache.commons.lang3.StringUtils;
 import org.full.migration.constants.Unit;
 import org.full.migration.validator.ValidMap;
@@ -24,15 +23,14 @@ import org.full.migration.validator.ValidPluginName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.validation.constraints.Min;
+import javax.validation.constraints.NotNull;
 import java.math.BigInteger;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.regex.Pattern;
-
-import javax.validation.constraints.Min;
-import javax.validation.constraints.NotNull;
 
 /**
  * SourceConfig
@@ -55,6 +53,7 @@ public class SourceConfig {
     private Integer writerNum;
     private Integer retryNum;
     private String fileSize;
+    private Integer threadQueueCapacity;
     @NotNull(message = "This parameter is required")
     private DatabaseConfig dbConn;
     @NotNull(message = "This parameter is required")

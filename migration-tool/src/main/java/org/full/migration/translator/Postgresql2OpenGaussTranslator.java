@@ -33,4 +33,9 @@ public class Postgresql2OpenGaussTranslator extends Source2OpenGaussTranslator {
                                       boolean isColumnCaseSensitive) {
         return Optional.of(sqlIn);
     }
+
+    @Override
+    public String getSourceDatabaseType() {
+        return "postgresql";
+    }
 }

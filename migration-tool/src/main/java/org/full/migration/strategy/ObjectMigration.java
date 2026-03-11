@@ -17,7 +17,7 @@ package org.full.migration.strategy;
 
 import org.full.migration.coordinator.QueueManager;
 import org.full.migration.source.SourceDatabase;
-import org.full.migration.target.TargetDatabase;
+import org.full.migration.target.ITargetDatabase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +42,7 @@ public class ObjectMigration extends MigrationStrategy {
      * @param target target
      * @param objectType objectType
      */
-    public ObjectMigration(SourceDatabase source, TargetDatabase target, String objectType) {
+    public ObjectMigration(SourceDatabase source, ITargetDatabase target, String objectType) {
         super(source, target);
         this.objectType = objectType;
     }

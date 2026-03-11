@@ -24,12 +24,20 @@ import java.util.Optional;
 
 /**
  * Source2OpenGaussTranslator
+ * Translator for converting SQL from source database to openGauss SQL
  *
  * @since 2025-06-06
  */
 @Data
-public abstract class Source2OpenGaussTranslator {
+public abstract class Source2OpenGaussTranslator implements Source2TargetTranslator {
     private static final Logger LOGGER = LoggerFactory.getLogger(Source2OpenGaussTranslator.class);
+    
+    @Override
+    public String getTargetDatabaseType() {
+        return "opengauss";
+    }
+    
+    @Override
     public abstract Optional<String> translate(String sqlIn, boolean isDebug,
                                                boolean isColumnCaseSensitiv);
 }

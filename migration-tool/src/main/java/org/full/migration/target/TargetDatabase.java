@@ -81,7 +81,7 @@ import java.util.regex.Pattern;
  * @since 2025-04-18
  */
 @Data
-public class TargetDatabase {
+public class TargetDatabase implements ITargetDatabase{
     private static final Logger LOGGER = LoggerFactory.getLogger(TargetDatabase.class);
     private static final Pattern CSV_SPLIT_PATTERN = Pattern.compile(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
     private static final String CREATE_SCHEMA_SQL = "create schema if not exists \"%s\"";

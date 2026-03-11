@@ -16,10 +16,9 @@
 package org.full.migration.strategy;
 
 import lombok.Getter;
-
 import org.full.migration.model.TaskTypeEnum;
 import org.full.migration.source.SourceDatabase;
-import org.full.migration.target.TargetDatabase;
+import org.full.migration.target.ITargetDatabase;
 
 import java.util.Arrays;
 import java.util.Set;
@@ -33,15 +32,15 @@ import java.util.function.Consumer;
  */
 @Getter
 public enum TableMigrationType {
-    INDEX(TaskTypeEnum.INDEX.getTaskType(), SourceDatabase::readTableIndex, TargetDatabase::writeTableIndex),
+    INDEX(TaskTypeEnum.INDEX.getTaskType(), SourceDatabase::readTableIndex, ITargetDatabase::writeTableIndex),
     CONSTRAINT(TaskTypeEnum.CONSTRAINT.getTaskType(), SourceDatabase::readConstraints,
-        TargetDatabase::writeConstraints),
-    PRIMARY_KEY(TaskTypeEnum.PRIMARY_KEY.getTaskType(), SourceDatabase::readTablePk, TargetDatabase::writeTablePk),
-    FOREIGN_KEY(TaskTypeEnum.FOREIGN_KEY.getTaskType(), SourceDatabase::readTableFk, TargetDatabase::writeTableFk);
+            ITargetDatabase::writeConstraints),
+    PRIMARY_KEY(TaskTypeEnum.PRIMARY_KEY.getTaskType(), SourceDatabase::readTablePk, ITargetDatabase::writeTablePk),
+    FOREIGN_KEY(TaskTypeEnum.FOREIGN_KEY.getTaskType(), SourceDatabase::readTableFk, ITargetDatabase::writeTableFk);
 
     private final String type;
     private final BiConsumer<SourceDatabase, Set<String>> readTask;
-    private final Consumer<TargetDatabase> writeTask;
+    private final Consumer<ITargetDatabase> writeTask;
 
     /**
      * TableMigrationType
@@ -51,7 +50,7 @@ public enum TableMigrationType {
      * @param writeTask writeTask
      */
     TableMigrationType(String type, BiConsumer<SourceDatabase, Set<String>> readTask,
-        Consumer<TargetDatabase> writeTask) {
+        Consumer<ITargetDatabase> writeTask) {
         this.type = type;
         this.readTask = readTask;
         this.writeTask = writeTask;

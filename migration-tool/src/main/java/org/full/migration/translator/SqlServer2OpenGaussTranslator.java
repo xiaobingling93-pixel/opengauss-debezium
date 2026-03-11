@@ -70,4 +70,9 @@ public class SqlServer2OpenGaussTranslator extends Source2OpenGaussTranslator {
     public Optional<String> translate(String sqlIn, boolean isDebug, boolean isColumnCaseSensitiv) {
         return translateSQLServer2openGauss(sqlIn, isDebug, isColumnCaseSensitiv);
     }
+
+    @Override
+    public String getSourceDatabaseType() {
+        return "sqlserver";
+    }
 }

@@ -20,7 +20,7 @@ import org.full.migration.coordinator.QueueManager;
 import org.full.migration.model.PostgresCustomTypeMeta;
 import org.full.migration.model.config.SourceConfig;
 import org.full.migration.source.SourceDatabase;
-import org.full.migration.target.TargetDatabase;
+import org.full.migration.target.ITargetDatabase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +45,7 @@ public class TableMigration extends MigrationStrategy {
      * @param source source
      * @param target target
      */
-    public TableMigration(SourceDatabase source, TargetDatabase target) {
+    public TableMigration(SourceDatabase source, ITargetDatabase target) {
         super(source, target);
     }
 

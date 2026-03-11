@@ -18,7 +18,7 @@ package org.full.migration.translator;
 import java.util.Optional;
 
 /**
- * OpenGauss2OpenGaussTranslator
+ * Translator for converting SQL from openGauss to openGauss SQL
  *
  * @since 2025-06-24
  */
@@ -27,5 +27,10 @@ public class OpenGauss2OpenGaussTranslator extends Source2OpenGaussTranslator {
     public Optional<String> translate(String sqlIn, boolean isDebug,
                                       boolean isColumnCaseSensitive) {
         return Optional.of(sqlIn);
+    }
+
+    @Override
+    public String getSourceDatabaseType() {
+        return "opengauss";
     }
 }
