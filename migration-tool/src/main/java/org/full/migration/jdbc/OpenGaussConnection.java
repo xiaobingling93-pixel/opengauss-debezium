@@ -15,7 +15,9 @@
 
 package org.full.migration.jdbc;
 
+import org.full.migration.enums.SqlCompatibilityEnum;
 import org.full.migration.model.config.DatabaseConfig;
+import org.full.migration.utils.OpenGaussUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,12 +36,26 @@ public class OpenGaussConnection implements JdbcConnection {
     private static final String JDBC_URL
         = "jdbc:opengauss://%s:%s/%s?currentSchema=%s&connectTimeout=10&loggerLevel=error";
 
+    private final SqlCompatibilityEnum sqlCompatibility;
+
+    public OpenGaussConnection() {
+        sqlCompatibility = SqlCompatibilityEnum.A;
+    }
+
+    public OpenGaussConnection(SqlCompatibilityEnum sqlCompatibility) {
+        this.sqlCompatibility = sqlCompatibility;
+    }
+
     @Override
     public Connection getConnection(DatabaseConfig dbConfig) throws SQLException {
         String sourceUrl = String.format(Locale.ROOT, JDBC_URL, dbConfig.getHost(), dbConfig.getPort(),
             dbConfig.getDatabase(), dbConfig.getSchema());
         try {
-            return DriverManager.getConnection(sourceUrl, dbConfig.getUser(), dbConfig.getPassword());
+            Connection connection = DriverManager.getConnection(sourceUrl, dbConfig.getUser(), dbConfig.getPassword());
+            if (sqlCompatibility.equals(SqlCompatibilityEnum.B)) {
+                OpenGaussUtils.openDolphinSqlModeAnsiQuotes(connection);
+            }
+            return connection;
         } catch (SQLException e) {
             LOGGER.error("Unable to connect to database {}:{}, error message is: {}", dbConfig.getHost(),
                 dbConfig.getPort(), e.getMessage());

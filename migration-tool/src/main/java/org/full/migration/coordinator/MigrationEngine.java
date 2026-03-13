@@ -76,10 +76,8 @@ public class MigrationEngine {
                 return;
             }
             getDatabasePasswordFromEnv(globalConfig);
-            
-            // Build source database strategy
-            SourceDatabaseFactory.buildStrategyMap(globalConfig);
-             SourceDatabase source = SourceDatabaseFactory.getSourceDatabase(sourceDbType);
+
+            SourceDatabase source = SourceDatabaseFactory.getSourceDatabase(globalConfig, sourceDbType);
             if (source == null) {
                 LOGGER.error("Failed to create source database instance");
                 return;
