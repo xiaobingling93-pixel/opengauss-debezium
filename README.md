@@ -424,12 +424,12 @@ gtid_mode=on #若未开启该参数，则sink端按照事务顺序串行回放�
   unzip confluent-community-5.5.1-2.12.zip
   ```
 
-- [debezium-connector-mysql](https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/tools/openGauss-IncReplicate-MySQL2openGauss-7.0.0-RC3.tar.gz)
+- [debezium-connector-mysql](https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/tools/openGauss-IncReplicateMysql2OpenGauss-7.0.0-RC3.tar.gz)
 
   ```
-  wget -c https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/tools/openGauss-IncReplicate-MySQL2openGauss-7.0.0-RC3.tar.gz
+  wget -c https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/tools/openGauss-IncReplicateMysql2OpenGauss-7.0.0-RC3.tar.gz
   
-  tar -zxvf openGauss-IncReplicate-MySQL2openGauss-7.0.0-RC3.tar.gz
+  tar -zxvf openGauss-IncReplicateMysql2OpenGauss-7.0.0-RC3.tar.gz
   ```
 
 #### 修改配置文件
@@ -1051,12 +1051,12 @@ postgresql数据迁移至openGauss数据类型映射关系如下：
   unzip confluent-community-5.5.1-2.12.zip
   ```
 
-- [debezium-connector-postgres](https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/tools/openGauss-IncReplicate-PostgreSQL2openGauss-7.0.0-RC3.tar.gz)
+- [debezium-connector-postgres](https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/tools/openGauss-IncReplicatePostgresql2OpenGauss-7.0.0-RC3.tar.gz)
 
   ```
-  wget -c https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/tools/openGauss-IncReplicate-PostgreSQL2openGauss-7.0.0-RC3.tar.gz
+  wget -c https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/tools/openGauss-IncReplicatePostgresql2OpenGauss-7.0.0-RC3.tar.gz
 
-  tar -zxvf openGauss-IncReplicate-PostgreSQL2openGauss-7.0.0-RC3.tar.gz
+  tar -zxvf openGauss-IncReplicatePostgresql2OpenGauss-7.0.0-RC3.tar.gz
   ```
 
 #### 修改配置文件
@@ -1563,12 +1563,12 @@ wal_level=logical
   unzip confluent-community-5.5.1-2.12.zip
   ```
 
-- [debezium-connector-opengauss](https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/tools/openGauss-IncReplicate-openGauss2MySQL-7.0.0-RC3.tar.gz)
+- [debezium-connector-opengauss](https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/tools/openGauss-IncReplicateOpenGauss2Mysql-7.0.0-RC3.tar.gz)
 
   ```
-  wget -c https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/tools/openGauss-IncReplicate-openGauss2MySQL-7.0.0-RC3.tar.gz
+  wget -c https://opengauss.obs.cn-south-1.myhuaweicloud.com/latest/tools/openGauss-IncReplicateOpenGauss2Mysql-7.0.0-RC3.tar.gz
   
-  tar -zxvf openGauss-IncReplicate-openGauss2MySQL-7.0.0-RC3.tar.gz
+  tar -zxvf openGauss-IncReplicateOpenGauss2Mysql-7.0.0-RC3.tar.gz
   ```
 
 #### 修改配置文件
