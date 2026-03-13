@@ -13,7 +13,7 @@
  * See the Mulan PSL v2 for more details.
  */
 
-package org.full.migration.source;
+package org.full.migration.source.opengauss;
 
 import lombok.EqualsAndHashCode;
 import org.apache.commons.collections4.CollectionUtils;
@@ -22,6 +22,7 @@ import org.full.migration.constants.CommonConstants;
 import org.full.migration.constants.OpenGaussConstants;
 import org.full.migration.coordinator.ProgressTracker;
 import org.full.migration.coordinator.QueueManager;
+import org.full.migration.enums.SqlCompatibilityEnum;
 import org.full.migration.jdbc.OpenGaussConnection;
 import org.full.migration.model.object.DbObject;
 import org.full.migration.model.PostgresCustomTypeMeta;
@@ -36,6 +37,7 @@ import org.full.migration.model.table.Table;
 import org.full.migration.model.table.OpenGaussPartitionDefinition;
 import org.full.migration.model.table.TableIndex;
 import org.full.migration.model.table.TableMeta;
+import org.full.migration.source.SourceDatabase;
 import org.full.migration.translator.PostgresColumnType;
 import org.full.migration.translator.PostgresqlFuncTranslator;
 import org.full.migration.utils.DatabaseUtils;
@@ -52,7 +54,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.HashMap;
 import java.util.Arrays;
@@ -65,12 +66,13 @@ import java.util.stream.Collectors;
  * @since 2025-06-24
  */
 @EqualsAndHashCode(callSuper = true)
-public class OpenGaussSource extends SourceDatabase {
+public abstract class OpenGaussSource extends SourceDatabase {
     private static final Logger LOGGER = LoggerFactory.getLogger(OpenGaussSource.class);
     private static final String LINESEP = System.lineSeparator();
-    public OpenGaussSource(GlobalConfig globalConfig) {
+
+    public OpenGaussSource(GlobalConfig globalConfig, SqlCompatibilityEnum sqlCompatibility) {
         super(globalConfig);
-        this.connection = new OpenGaussConnection();
+        this.connection = new OpenGaussConnection(sqlCompatibility);
     }
 
     /**
@@ -199,7 +201,7 @@ public class OpenGaussSource extends SourceDatabase {
     @Override
     protected List<Table> getSchemaAllTables(String schema, Connection conn) {
         List<Table> tables = new ArrayList<>();
-        String queryTableSql = String.format(OpenGaussConstants.QUERY_TABLE_SQL, schema);
+        String queryTableSql = String.format(getQueryTableSql(), schema);
         try (Statement stmt = conn.createStatement();
             ResultSet rs = stmt.executeQuery(queryTableSql)) {
             while (rs.next()) {
@@ -218,6 +220,10 @@ public class OpenGaussSource extends SourceDatabase {
             LOGGER.error("fail to query table list, error message:{}.", e.getMessage());
         }
         return tables;
+    }
+
+    String getQueryTableSql() {
+        return OpenGaussConstants.QUERY_TABLE_SQL;
     }
 
     /**
@@ -1133,6 +1139,7 @@ public class OpenGaussSource extends SourceDatabase {
         String targetSchema = table.getTargetSchemaName();
         createTableSql = filterDefaultNextval(createTableSql);
         createTableSql = filterForeignKey(createTableSql);
+        createTableSql = filterEnumSet(createTableSql);
         createTableSql = combineInheritsDdl(createTableSql, inheritsDdl);
         createTableSql = createTableSql.replaceAll(schemaName + "\\.", targetSchema + ".");
 
@@ -1143,6 +1150,10 @@ public class OpenGaussSource extends SourceDatabase {
             tableDefinitionSql.append(String.join(";", commentSqls)).append(";");
         }
         return Optional.of(tableDefinitionSql.toString());
+    }
+
+    String filterEnumSet(String createTableSql) {
+        return createTableSql;
     }
 
     private String filterDefaultNextval(String createTableSql) {

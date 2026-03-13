@@ -15,10 +15,14 @@
 
 package org.full.migration.source;
 
+import org.full.migration.enums.SqlCompatibilityEnum;
 import org.full.migration.model.config.GlobalConfig;
+import org.full.migration.source.opengauss.OpenGaussASource;
+import org.full.migration.source.opengauss.OpenGaussBSource;
+import org.full.migration.source.opengauss.OpenGaussSource;
+import org.full.migration.utils.OpenGaussUtils;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.sql.SQLException;
 
 /**
  * SourceDatabaseFactory
@@ -26,26 +30,37 @@ import java.util.Map;
  * @since 2025-04-18
  */
 public class SourceDatabaseFactory {
-    private static final Map<String, SourceDatabase> strategyMap = new HashMap<>();
-
-    /**
-     * buildStrategyMap
-     *
-     * @param globalConfig globalConfig
-     */
-    public static void buildStrategyMap(GlobalConfig globalConfig) {
-        strategyMap.put("sqlserver", new SqlServerSource(globalConfig));
-        strategyMap.put("postgresql", new PostgresSource(globalConfig));
-        strategyMap.put("opengauss", new OpenGaussSource(globalConfig));
-    }
-
     /**
      * getSourceDatabase
      *
      * @param dbType dbType
      * @return SourceDatabase
      */
-    public static SourceDatabase getSourceDatabase(String dbType) {
-        return strategyMap.get(dbType);
+    public static SourceDatabase getSourceDatabase(GlobalConfig globalConfig, String dbType) {
+        if ("sqlserver".equals(dbType)) {
+            return new SqlServerSource(globalConfig);
+        } else if ("postgresql".equals(dbType)) {
+            return new PostgresSource(globalConfig);
+        } else if ("opengauss".equals(dbType)) {
+            return createOpenGaussSource(globalConfig);
+        } else {
+            throw new IllegalArgumentException("Unsupported source database type: " + dbType);
+        }
+    }
+
+    private static OpenGaussSource createOpenGaussSource(GlobalConfig globalConfig) {
+        try {
+            SqlCompatibilityEnum compatibilityEnum = OpenGaussUtils.getSqlCompatibilityEnum(
+                    globalConfig.getSourceConfig().getDbConn());
+            if (compatibilityEnum.equals(SqlCompatibilityEnum.A)) {
+                return new OpenGaussASource(globalConfig);
+            } else if (compatibilityEnum.equals(SqlCompatibilityEnum.B)) {
+                return new OpenGaussBSource(globalConfig);
+            } else {
+                throw new RuntimeException("Unsupported source openGauss sql_compatibility: " + compatibilityEnum);
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get sql_compatibility from openGauss source", e);
+        }
     }
 }

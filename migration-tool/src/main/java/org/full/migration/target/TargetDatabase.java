@@ -22,6 +22,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.full.migration.constants.CommonConstants;
 import org.full.migration.coordinator.ProgressTracker;
 import org.full.migration.coordinator.QueueManager;
+import org.full.migration.enums.SqlCompatibilityEnum;
 import org.full.migration.jdbc.JdbcConnection;
 import org.full.migration.jdbc.OpenGaussConnection;
 import org.full.migration.model.object.DbObject;
@@ -115,15 +116,16 @@ public class TargetDatabase implements ITargetDatabase{
      * Constructor
      *
      * @param globalConfig globalConfig
+     * @param targetSqlCompatibility targetSqlCompatibility
      */
-    public TargetDatabase(GlobalConfig globalConfig) {
+    public TargetDatabase(GlobalConfig globalConfig, SqlCompatibilityEnum targetSqlCompatibility) {
         this.dbConfig = globalConfig.getOgConn();
         this.isJsonDump = globalConfig.getIsDumpJson();
         this.spacePerSlice = globalConfig.getSourceConfig().convertFileSize();
         this.isDeleteCsv = globalConfig.getIsDeleteCsv();
         this.isKeepExistingSchema = globalConfig.getIsKeepExistingSchema();
         this.schemaMappings = globalConfig.getSourceConfig().getSchemaMappings();
-        this.connection = new OpenGaussConnection();
+        this.connection = new OpenGaussConnection(targetSqlCompatibility);
         initSnapshotRecordTable();
     }
 

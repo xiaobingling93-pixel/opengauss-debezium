@@ -4,11 +4,16 @@
 
 package org.full.migration.target;
 
+import org.full.migration.enums.SqlCompatibilityEnum;
 import org.full.migration.exception.ErrorCode;
 import org.full.migration.exception.TargetDatabaseException;
+import org.full.migration.model.config.DatabaseConfig;
 import org.full.migration.model.config.GlobalConfig;
+import org.full.migration.utils.OpenGaussUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.sql.SQLException;
 
 /**
  * TargetDatabaseFactory
@@ -38,7 +43,7 @@ public class TargetDatabaseFactory {
             throw new TargetDatabaseException(ErrorCode.TARGET_DATABASE_NOT_SUPPORT.getCode(), targetDbType);
         } else {
             LOGGER.info("Using traditional TargetDatabase for CSV scenario");
-            return new TargetDatabase(globalConfig);
+            return new TargetDatabase(globalConfig, getOpenGaussSqlCompatibilityEnum(globalConfig.getOgConn()));
         }
     }
     
@@ -58,5 +63,13 @@ public class TargetDatabaseFactory {
         }
         // Default to traditional CSV mode
         return false;
+    }
+
+    private static SqlCompatibilityEnum getOpenGaussSqlCompatibilityEnum(DatabaseConfig databaseConfig) {
+        try {
+            return OpenGaussUtils.getSqlCompatibilityEnum(databaseConfig);
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to get sql_compatibility from openGauss target", e);
+        }
     }
 }

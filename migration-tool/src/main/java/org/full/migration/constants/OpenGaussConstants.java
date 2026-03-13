@@ -115,6 +115,58 @@ public final class OpenGaussConstants {
             + "    tableRows ASC;";
 
     /**
+     * sql for querying all tables with sql_compatibility = B
+     */
+    public static final String QUERY_TABLE_SQL_B = "WITH tablestats AS (\n"
+            + "SELECT\n"
+            + "    t.tablename AS tableName,\n"
+            + "    c.relname AS relName,\n"
+            + "    pg_stat_user_tables.n_live_tup AS tableRows,\n"
+            + "    pg_table_size(c.oid) / 1024.0 AS totalTableSize,\n"
+            + "    CASE\n"
+            + "        WHEN c.parttype = 'n' THEN 0\n"
+            + "        ELSE 1\n"
+            + "    END AS isPartitioned,\n"
+            + "    CASE\n"
+            +        "  WHEN c.parttype = 's' THEN 1\n"
+            +        "  ELSE 0\n"
+            + "    END AS isSubPartitioned,\n"
+            + "    CASE\n"
+            + "        WHEN EXISTS (\n"
+            + "            SELECT 1\n"
+            + "            FROM pg_index i\n"
+            + "            JOIN pg_class ic ON i.indexrelid = ic.oid\n"
+            + "            WHERE i.indrelid = c.oid\n"
+            + "            AND i.indisprimary\n"
+            + "        ) THEN 1\n"
+            + "        ELSE 0\n"
+            + "    END AS hasPrimaryKey,\n"
+            + "    COALESCE(('segment=on' = ANY(c.reloptions))::int, 0) AS has_segment_on\n"
+            + "FROM\n"
+            + "    pg_catalog.pg_tables t\n"
+            + "JOIN\n"
+            + "    pg_catalog.pg_namespace n ON t.schemaname = n.nspname\n"
+            + "JOIN\n"
+            + "    pg_catalog.pg_class c ON t.tablename = c.relname AND c.relnamespace = n.oid\n"
+            + "LEFT JOIN\n"
+            + "    pg_stat_user_tables ON pg_stat_user_tables.relid = c.oid\n"
+            + "WHERE\n"
+            + "    t.schemaname = '%s' -- 只查询特定schema\n"
+            + ")\n"
+            + "SELECT\n"
+            + "    tableName,\n"
+            + "    tableRows,\n"
+            + "    totalTableSize,\n"
+            + "    isPartitioned,\n"
+            + "    isSubPartitioned,\n"
+            + "    hasPrimaryKey,\n"
+            + "    has_segment_on\n"
+            + "FROM\n"
+            + "    tablestats\n"
+            + "ORDER BY\n"
+            + "    tableRows ASC;";
+
+    /**
      * sql for check column is generate
      */
     public static final String Check_COLUMN_IS_GENERATE = "SELECT\n"
@@ -596,6 +648,21 @@ public final class OpenGaussConstants {
      * sql for querying table definition
      */
     public static final String SELECT_PG_GET_TABLE_DEF = "SELECT pg_get_tabledef(?);";
+
+    /**
+     * sql for querying sql_compatibility
+     */
+    public static final String SHOW_SQL_COMPATIBILITY = "SHOW sql_compatibility;";
+
+    /**
+     * Show dolphin.sql_mode, support openGauss
+     */
+    public static final String OPENGAUSS_SHOW_DOLPHIN_SQL_MODE = "show dolphin.sql_mode;";
+
+    /**
+     * Set dolphin.sql_mode, support openGauss
+     */
+    public static final String OPENGAUSS_SET_DOLPHIN_SQL_MODE_MODEL = "set dolphin.sql_mode = '%s';";
 
     private OpenGaussConstants() {
     }
