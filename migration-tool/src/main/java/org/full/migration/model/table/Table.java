@@ -34,6 +34,7 @@ public class Table {
     private String tableName;
     private long rowCount;
     private long totalTableSize;
+    private long aveRowLength;
     private boolean isPartition;
     private boolean isSubPartition;
     private boolean hasPrimaryKey;
@@ -50,5 +51,23 @@ public class Table {
         this.catalogName = catalogName;
         this.schemaName = schemaName;
         this.tableName = tableName;
+    }
+    
+    /**
+     * 判断是否是分区表
+     *
+     * @return 是否是分区表
+     */
+    public boolean isPartitioned() {
+        return isPartition;
+    }
+    
+    /**
+     * 获取预估行数
+     *
+     * @return 预估行数
+     */
+    public long getEstimatedRowCount() {
+        return rowCount;
     }
 }

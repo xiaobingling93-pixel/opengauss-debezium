@@ -18,7 +18,7 @@ package org.full.migration.strategy;
 import org.full.migration.coordinator.ProgressTracker;
 import org.full.migration.coordinator.QueueManager;
 import org.full.migration.source.SourceDatabase;
-import org.full.migration.target.TargetDatabase;
+import org.full.migration.target.ITargetDatabase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,7 +42,7 @@ public abstract class MigrationStrategy {
     /**
      * target
      */
-    protected final TargetDatabase target;
+    protected final ITargetDatabase target;
 
     /**
      * MigrationStrategy
@@ -50,7 +50,7 @@ public abstract class MigrationStrategy {
      * @param source source
      * @param target target
      */
-    public MigrationStrategy(SourceDatabase source, TargetDatabase target) {
+    public MigrationStrategy(SourceDatabase source, ITargetDatabase target) {
         this.source = source;
         this.target = target;
     }

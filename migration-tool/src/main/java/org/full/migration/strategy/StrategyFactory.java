@@ -17,7 +17,7 @@ package org.full.migration.strategy;
 
 import org.full.migration.model.TaskTypeEnum;
 import org.full.migration.source.SourceDatabase;
-import org.full.migration.target.TargetDatabase;
+import org.full.migration.target.ITargetDatabase;
 
 import java.util.HashMap;
 import java.util.Locale;
@@ -37,8 +37,9 @@ public class StrategyFactory {
      * @param sourceDatabase sourceDatabase
      * @param targetDatabase targetDatabase
      */
-    public static void buildStrategyMap(SourceDatabase sourceDatabase, TargetDatabase targetDatabase) {
+    public static void buildStrategyMap(SourceDatabase sourceDatabase, ITargetDatabase targetDatabase) {
         strategyMap.put(TaskTypeEnum.TABLE.getTaskType(), new TableMigration(sourceDatabase, targetDatabase));
+        strategyMap.put(TaskTypeEnum.DATAX_TABLE.getTaskType(), new DataxTableMigration(sourceDatabase, targetDatabase));
         strategyMap.put(TaskTypeEnum.INDEX.getTaskType(),
             new KeyAndIndexMigration(sourceDatabase, targetDatabase, TaskTypeEnum.INDEX.getTaskType()));
         strategyMap.put(TaskTypeEnum.PRIMARY_KEY.getTaskType(),

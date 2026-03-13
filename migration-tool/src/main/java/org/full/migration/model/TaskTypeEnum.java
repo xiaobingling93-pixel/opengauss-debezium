@@ -27,6 +27,7 @@ import lombok.Getter;
 @AllArgsConstructor
 public enum TaskTypeEnum {
     TABLE("table"),
+    DATAX_TABLE("datax_table"),
     SEQUENCE("sequence"),
     PRIMARY_KEY("primarykey"),
     FOREIGN_KEY("foreignkey"),

@@ -15,12 +15,10 @@
 
 package org.full.migration.strategy;
 
-import org.apache.commons.lang3.StringUtils;
-import org.full.migration.coordinator.ProgressTracker;
 import org.full.migration.coordinator.QueueManager;
 import org.full.migration.model.TaskTypeEnum;
 import org.full.migration.source.SourceDatabase;
-import org.full.migration.target.TargetDatabase;
+import org.full.migration.target.ITargetDatabase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +44,7 @@ public class KeyAndIndexMigration extends MigrationStrategy {
      * @param target target
      * @param type type
      */
-    public KeyAndIndexMigration(SourceDatabase source, TargetDatabase target, String type) {
+    public KeyAndIndexMigration(SourceDatabase source, ITargetDatabase target, String type) {
         super(source, target);
         this.type = type;
     }

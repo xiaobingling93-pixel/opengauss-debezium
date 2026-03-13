@@ -16,7 +16,7 @@
 package org.full.migration.strategy;
 
 import org.full.migration.source.SourceDatabase;
-import org.full.migration.target.TargetDatabase;
+import org.full.migration.target.ITargetDatabase;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +39,7 @@ public class DropReplicaSchema extends MigrationStrategy {
      * @param source source
      * @param target target
      */
-    public DropReplicaSchema(SourceDatabase source, TargetDatabase target) {
+    public DropReplicaSchema(SourceDatabase source, ITargetDatabase target) {
         super(source, target);
     }
 
