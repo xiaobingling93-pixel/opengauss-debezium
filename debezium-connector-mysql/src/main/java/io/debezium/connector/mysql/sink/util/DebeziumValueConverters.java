@@ -70,6 +70,8 @@ public class DebeziumValueConverters {
             put("polygon", (columnName, value) -> convertPolygon(columnName, value));
             put("\"binary\"", (columnName, value) -> convertBinary(columnName, value));
             put("\"varbinary\"", (columnName, value) -> convertBinary(columnName, value));
+            put("`binary`", (columnName, value) -> convertBinary(columnName, value));
+            put("`varbinary`", (columnName, value) -> convertBinary(columnName, value));
             put("binary", (columnName, value) -> convertBinary(columnName, value));
             put("varbinary", (columnName, value) -> convertBinary(columnName, value));
             put("bytea", (columnName, value) -> convertBytea(columnName, value));

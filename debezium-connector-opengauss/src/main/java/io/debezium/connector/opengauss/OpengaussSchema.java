@@ -16,6 +16,7 @@ import java.util.Map;
 
 import org.apache.kafka.connect.data.Schema;
 import org.apache.kafka.connect.errors.ConnectException;
+import org.opengauss.util.PSQLException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -123,10 +124,16 @@ public class OpengaussSchema extends RelationalDatabaseSchema {
                 Statement stmt = connection.connection().createStatement();
                 String sql = String.format("ALTER TABLE %s REPLICA IDENTITY FULL", tableId.toDoubleQuotedString());
                 stmt.execute(sql);
+                stmt.close();
                 LOGGER.info("REPLICA IDENTITY for '{}' is changed to  FULL, UPDATE AND DELETE events will contain the previous values of all the columns", tableId);
             }
         }
         catch (SQLException exp) {
+            try {
+                connection.connection().rollback();
+            } catch (SQLException e) {
+                LOGGER.error("Failed to rollback transaction", e);
+            }
             LOGGER.warn("Cannot determine REPLICA IDENTITY info for '{}', exp message is {}",
                     tableId, exp.getMessage());
         }

@@ -817,11 +817,35 @@ public class OpengaussConnection extends JdbcConnection {
         try (Statement stmt = conn.createStatement()) {
             stmt.execute("set session_timeout = 0");
             stmt.execute("set dolphin.b_compatibility_mode to on");
+            alterSqlMode(conn);
         } catch (SQLException exp) {
             LOGGER.error("{}SQL Exception occurred when set session parameter.", ErrorCode.DB_CONNECTION_EXCEPTION);
         }
     }
 
+    public static void alterSqlMode(Connection connection) {
+        try (Statement statement = connection.createStatement()) {
+            ResultSet compatibilityRes = statement.executeQuery("show sql_compatibility");
+            if (compatibilityRes.next()) {
+                String mode = compatibilityRes.getString(1);
+                if (!"B".equalsIgnoreCase(mode.trim())) {
+                    return;
+                }
+                ResultSet modeRes = statement.executeQuery("show dolphin.sql_mode");
+                String sqlMode = "";
+                if (modeRes.next()) {
+                    sqlMode = modeRes.getString(1).trim();
+                }
+                if (sqlMode.contains("ansi_quotes")) {
+                    return;
+                }
+                sqlMode += "".equals(sqlMode) ? "ansi_quotes" : ",ansi_quotes";
+                statement.executeUpdate(String.format("set dolphin.sql_mode='%s'", sqlMode));
+            }
+        } catch (SQLException e) {
+            LOGGER.warn("Parameter: dolphin.sql_mode, setting failed.");
+        }
+    }
     /**
      * Create a statement for the database session
      *
