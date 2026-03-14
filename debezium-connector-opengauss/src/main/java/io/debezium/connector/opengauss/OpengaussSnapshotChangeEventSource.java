@@ -110,6 +110,7 @@ public class OpengaussSnapshotChangeEventSource extends RelationalSnapshotChange
     private BigInteger csvDirSize;
     private BigInteger pageSize = BigInteger.valueOf(2 * MEMORY_UNIT * MEMORY_UNIT);
     private AtomicInteger unlockCount = new AtomicInteger(0);
+    boolean isCreateDataEvents = false;
 
     public OpengaussSnapshotChangeEventSource(OpengaussConnectorConfig connectorConfig, Snapshotter snapshotter,
                                               OpengaussConnection jdbcConnection, OpengaussSchema schema, EventDispatcher<TableId> dispatcher, Clock clock,
@@ -319,6 +320,10 @@ public class OpengaussSnapshotChangeEventSource extends RelationalSnapshotChange
     @Override
     protected void createDataEvents(ChangeEventSourceContext sourceContext,
                                     RelationalSnapshotContext<OpengaussPartition, OpengaussOffsetContext> snapshotContext) throws Exception {
+        if ("always".equals(connectorConfig.snapshotMode()) && isCreateDataEvents) {
+            return;
+        }
+        isCreateDataEvents = true;
         if (!new File(csvPath).exists()) {
             Files.createDirectories(Paths.get(csvPath));
         }

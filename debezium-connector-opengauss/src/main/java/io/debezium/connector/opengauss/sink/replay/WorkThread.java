@@ -296,14 +296,15 @@ public class WorkThread extends Thread {
         } catch (SQLException e) {
             LOGGER.error("{}workthread exception", ErrorCode.SQL_EXCEPTION, e);
         }
-        List<String> lineList = new ArrayList<>();
+        List<String> lineList;
         String path = dmlOperation.getPath();
         try {
             lineList = Files.lines(Paths.get(path))
                     .flatMap(line -> Arrays.stream(line.split(System.lineSeparator())))
                     .collect(Collectors.toList());
         } catch (IOException e) {
-            LOGGER.error("{}load csv file failure IO exception", ErrorCode.IO_EXCEPTION, e);
+            LOGGER.error("{}load csv file failure: ", ErrorCode.IO_EXCEPTION, e.getCause());
+            return;
         }
         Struct after = dmlOperation.getAfter();
         List<ColumnMetaData> columnList = getColumnList(tableFullName, tableMetaData, columnString);
@@ -348,9 +349,10 @@ public class WorkThread extends Thread {
             processRecordMap.put(tableName, count + list.size());
             replayedOffsets.offer(sinkRecordObject.getKafkaOffset());
             savedBreakPointInfo(sinkRecordObject, true);
+            clearCsvFile(path);
         } catch (CommunicationsException exp) {
             LOGGER.error("{}statement closed unexpectedly.", ErrorCode.DB_CONNECTION_EXCEPTION);
-            retryLoad(sql, inputStream, sinkRecordObject);
+            retryLoad(sql, inputStream, sinkRecordObject, path);
             if (isConnection) {
                 processRecordMap.put(tableName, count + list.size());
             }
@@ -362,7 +364,6 @@ public class WorkThread extends Thread {
             printSqlException(path, e, sql);
         } finally {
             try {
-                clearCsvFile(path);
                 inputStream.close();
             } catch (IOException e) {
                 LOGGER.error("{}inputStream close error", ErrorCode.IO_EXCEPTION, e);
@@ -370,7 +371,7 @@ public class WorkThread extends Thread {
         }
     }
 
-    private void retryLoad(String sql, InputStream ins, SinkRecordObject sinkRecordObject) {
+    private void retryLoad(String sql, InputStream ins, SinkRecordObject sinkRecordObject, String path) {
         try {
             clientPreparedStatement.close();
             connection.close();
@@ -389,6 +390,7 @@ public class WorkThread extends Thread {
             replayedOffsets.offer(sinkRecordObject.getKafkaOffset());
             savedBreakPointInfo(sinkRecordObject, false);
         } catch (SQLException | IOException e) {
+            clearCsvFile(path);
             if (!connectionInfo.checkConnectionStatus(connection)) {
                 return;
             }
