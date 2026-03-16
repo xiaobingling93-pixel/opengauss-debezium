@@ -1263,6 +1263,10 @@ public class OpengaussConnectorConfig extends RelationalDatabaseConnectorConfig 
         return getConfig().getInteger(PORT);
     }
 
+    public String snapshotMode() {
+        return getConfig().getString(SNAPSHOT_MODE);
+    }
+
     public String iscluster() {
         return getConfig().getString(ISCLUSTER);
     }
