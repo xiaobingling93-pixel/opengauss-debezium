@@ -48,6 +48,7 @@ public enum ErrorCode {
     THREAD_POOL_TASK_EXECUTION_FAILED("70802", "线程池任务执行失败"),
     
     // 外部系统错误
+    DATAX_TOOLS_INITIALIZATION_ERROR("80900", "DataX工具初始化失败"),
     DATAX_EXECUTION_FAILED("80901", "DataX执行失败"),
     EXTERNAL_SYSTEM_TIMEOUT("80902", "外部系统超时"),
     
