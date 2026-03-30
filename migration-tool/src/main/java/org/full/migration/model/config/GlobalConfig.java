@@ -38,7 +38,6 @@ public class GlobalConfig {
     private String rollbarEnv;
     @NotNull(message = "This parameter is required and of boolean type")
     private Boolean isDumpJson;
-    @NotNull(message = "This parameter is required and of boolean type")
     private Boolean isDeleteCsv;
     @NotNull(message = "This parameter is required and of boolean type.")
     private Boolean isKeepExistingSchema;

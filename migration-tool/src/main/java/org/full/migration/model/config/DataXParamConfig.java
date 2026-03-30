@@ -40,4 +40,6 @@ public class DataXParamConfig {
     private Integer batchWriteSize;
     private Integer retryTimes;
     private Integer retryInterval;
+    private Boolean enableKeepDataXTemporaryConfig = false;
+    private Boolean enableOutputDataxLogs =false;
 }

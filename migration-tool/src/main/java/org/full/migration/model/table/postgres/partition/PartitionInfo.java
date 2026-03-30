@@ -33,6 +33,11 @@ public abstract class PartitionInfo {
     public static final String LIST_PARTITION = "LIST";
 
     /**
+     * INTERVAL PARTITION
+     */
+    public static final String INTERVAL_PARTITION = "INTERVAL";
+
+    /**
      * empty string
      */
     public static final String EMPTY_STRING = "";

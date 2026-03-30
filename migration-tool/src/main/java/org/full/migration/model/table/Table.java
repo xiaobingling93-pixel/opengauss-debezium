@@ -38,6 +38,8 @@ public class Table {
     private boolean isPartition;
     private boolean isSubPartition;
     private boolean hasPrimaryKey;
+    private String pkColumns;
+    private String tbColumns;
     private boolean hasSegment = false;
 
     /**

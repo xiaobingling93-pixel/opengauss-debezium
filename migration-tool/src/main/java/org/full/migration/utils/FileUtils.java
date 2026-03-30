@@ -29,6 +29,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.PosixFilePermission;
+import java.util.Comparator;
 import java.util.Locale;
 import java.util.Set;
 
@@ -195,6 +196,38 @@ public class FileUtils {
             Files.deleteIfExists(filePath);
         } catch (IOException e) {
             LOGGER.error("clear csv file failure, file path:{}, error message:{}.", path, e.getMessage());
+        }
+    }
+
+    /**
+     * deleteDir
+     * Deletes a directory and all its contents recursively
+     *
+     * @param directoryPath Path of the directory to delete
+     */
+    public static void deleteDir(String directoryPath) {
+        Path dirPath = Paths.get(directoryPath);
+        if (!Files.exists(dirPath)) {
+            LOGGER.debug("Directory does not exist: {}", directoryPath);
+            return;
+        }
+        if (!Files.isDirectory(dirPath)) {
+            LOGGER.warn("Path is not a directory: {}", directoryPath);
+            return;
+        }
+        try {
+            Files.walk(dirPath)
+                    .sorted(Comparator.reverseOrder())
+                    .forEach(path -> {
+                        try {
+                            Files.delete(path);
+                            LOGGER.debug("Deleted: {}", path.toAbsolutePath());
+                        } catch (IOException e) {
+                            LOGGER.warn("Failed to delete: {}, error: {}", path.toAbsolutePath(), e.getMessage());
+                        }
+                    });
+        } catch (IOException e) {
+            LOGGER.error("Error walking directory: {}, error: {}", directoryPath, e.getMessage());
         }
     }
 }
