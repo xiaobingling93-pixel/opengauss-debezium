@@ -210,26 +210,11 @@ public final class PostgresSqlConstants {
     public static final String QUERY_INDEX_SQL = "SELECT\n" +
             "  i.relname AS index_name,\n" +
             "  am.amname AS type_desc,\n" +
-            "  CASE\n" +
-            "      WHEN idx.indisunique THEN true\n" +
-            "      ELSE false\n" +
-            "  END AS is_unique,\n" +
-            "  CASE\n" +
-            "      WHEN idx.indisprimary THEN true\n" +
-            "      ELSE false\n" +
-            "  END AS is_primary_key,\n" +
-            "  CASE\n" +
-            "      WHEN idx.indpred IS NOT NULL THEN true\n" +
-            "      ELSE false\n" +
-            "  END AS has_filter,\n" +
-            "  CASE\n" +
-            "      WHEN idx.indpred IS NOT NULL THEN pg_get_expr(idx.indpred, idx.indrelid)\n" +
-            "      ELSE ''\n" +
-            "  END AS filter_definition,\n" +
-            "  CASE\n" +
-            "      WHEN idx.indexprs IS NOT NULL THEN pg_get_expr(idx.indexprs, idx.indrelid)\n" +
-            "      ELSE ''\n" +
-            "  END AS index_expression,\n" +
+            "  CASE WHEN idx.indisunique THEN true ELSE false END AS is_unique,\n" +
+            "  CASE WHEN idx.indisprimary THEN true ELSE false END AS is_primary_key,\n" +
+            "  CASE WHEN idx.indpred IS NOT NULL THEN true ELSE false END AS has_filter,\n" +
+            "  CASE WHEN idx.indpred IS NOT NULL THEN pg_get_expr(idx.indpred, idx.indrelid) ELSE '' END AS filter_definition,\n" +
+            "  CASE WHEN idx.indexprs IS NOT NULL THEN pg_get_expr(idx.indexprs, idx.indrelid) ELSE '' END AS index_expression,\n" +
             "  t.relname AS table_name,\n" +
             "  t.oid AS object_id\n" +
             "FROM\n" +
@@ -244,55 +229,55 @@ public final class PostgresSqlConstants {
             "  pg_am am ON i.relam = am.oid\n" +
             "WHERE\n" +
             "  n.nspname = '%s'\n" +
-            "  AND i.relkind = 'i'\n" +
+            "  AND i.relkind IN ('i', 'I') \n" +
             "ORDER BY\n" +
-            "    t.relname, i.relname;";
+            "  t.relname, i.relname;";
 
     /**
      * sql for querying cols of index
      */
-    public static final String QUERY_INDEX_COL_SQL = "SELECT a.attname AS column_name\n"
-        + "FROM pg_index i\n"
-        + "JOIN pg_attribute a ON a.attnum = ANY(i.indkey)\n"
-        + "JOIN pg_catalog.pg_class c ON c.oid = i.indrelid\n"
-        + "JOIN pg_catalog.pg_class idx ON idx.oid = i.indexrelid\n"
-        + "WHERE c.oid = %d\n"
-        + "  AND idx.relname = '%s'\n"
-        + "  AND a.attnum > 0\n"
-        + "  AND a.attrelid = c.oid\n"
-        + "ORDER BY a.attnum;";
+    public static final String QUERY_INDEX_COL_SQL = "SELECT a.attname AS column_name\n" +
+            "FROM pg_index i\n" +
+            "JOIN pg_class c ON c.oid = i.indrelid\n" +
+            "JOIN pg_class idx ON idx.oid = i.indexrelid\n" +
+            "JOIN pg_attribute a ON a.attrelid = c.oid\n" +
+            "CROSS JOIN generate_subscripts(i.indkey, 1) AS s(idx_order)\n" +
+            "WHERE c.oid = %d\n" +
+            "  AND idx.relname = '%s'\n" +
+            "  AND a.attnum = i.indkey[s.idx_order]\n" +
+            "ORDER BY s.idx_order;";
 
     /**
      * sql for querying primary keys
      */
-    public static final String QUERY_PRIMARY_KEY_SQL = "SELECT\n"
-        + "    t.table_name,\n"
-        + "    t.table_schema,\n"
-        + "    STRING_AGG(c.column_name, ', ') AS pk_columns,\n"
-        + "    pk.constraint_name AS pk_name\n"
-        + "FROM\n"
-        + "    information_schema.tables t\n"
-        + "JOIN\n"
-        + "    information_schema.table_constraints pk\n"
-        + "    ON t.table_name = pk.table_name\n"
-        + "    AND t.table_schema = pk.table_schema\n"
-        + "    AND pk.constraint_type = 'PRIMARY KEY'\n"
-        + "JOIN\n"
-        + "    information_schema.key_column_usage kcu\n"
-        + "    ON pk.constraint_name = kcu.constraint_name\n"
-        + "    AND pk.table_schema = kcu.table_schema\n"
-        + "    AND pk.table_name = kcu.table_name\n"
-        + "JOIN\n"
-        + "    information_schema.columns c\n"
-        + "    ON c.table_name = kcu.table_name\n"
-        + "    AND c.table_schema = kcu.table_schema\n"
-        + "    AND c.column_name = kcu.column_name\n"
-        + "WHERE\n"
-        + "    t.table_schema = ?\n"
-        + "GROUP BY\n"
-        + "    t.table_name, t.table_schema, pk.constraint_name\n"
-        + "ORDER BY\n"
-        + "    t.table_name;";
+    public static final String QUERY_PRIMARY_KEY_SQL = "SELECT\n" +
+            "    t.table_name,\n" +
+            "    t.table_schema,\n" +
+            "    STRING_AGG(c.column_name, ', ' ORDER BY kcu.ordinal_position) AS pk_columns,\n" +
+            "    pk.constraint_name AS pk_name\n" +
+            "FROM\n" +
+            "    information_schema.tables t\n" +
+            "JOIN\n" +
+            "    information_schema.table_constraints pk\n" +
+            "    ON t.table_name = pk.table_name\n" +
+            "    AND t.table_schema = pk.table_schema\n" +
+            "    AND pk.constraint_type = 'PRIMARY KEY'\n" +
+            "JOIN\n" +
+            "    information_schema.key_column_usage kcu\n" +
+            "    ON pk.constraint_name = kcu.constraint_name\n" +
+            "    AND pk.table_schema = kcu.table_schema\n" +
+            "    AND pk.table_name = kcu.table_name\n" +
+            "JOIN\n" +
+            "    information_schema.columns c\n" +
+            "    ON c.table_name = kcu.table_name\n" +
+            "    AND c.table_schema = kcu.table_schema\n" +
+            "    AND c.column_name = kcu.column_name\n" +
+            "WHERE\n" +
+            "    t.table_schema = ?\n" +
+            "GROUP BY\n" +
+            "    t.table_name, t.table_schema, pk.constraint_name\n" +
+            "ORDER BY\n" +
+            "    t.table_name;";
 
     /**
      * sql for querying foreign keys
