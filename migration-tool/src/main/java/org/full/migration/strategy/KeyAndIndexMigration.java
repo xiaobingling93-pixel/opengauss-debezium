@@ -59,7 +59,13 @@ public class KeyAndIndexMigration extends MigrationStrategy {
         executor.submit(() -> tableMigrationType.getReadTask().accept(source, schemaSet));
         int writeCount = source.getSourceConfig().getWriterNum();
         for (int i = 0; i < writeCount; i++) {
-            executor.submit(() -> tableMigrationType.getWriteTask().accept(target));
+            executor.submit(() -> {
+                try {
+                    tableMigrationType.getWriteTask().accept(target);
+                } catch (Exception e) {
+                    LOGGER.error("write {} has occurred exception.", tableMigrationType.getType(), e);
+                }
+            });
         }
         executor.shutdown();
         String queueName = "";

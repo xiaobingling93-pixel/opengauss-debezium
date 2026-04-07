@@ -843,7 +843,9 @@ public class TargetDatabase implements ITargetDatabase{
                     conn.commit();
                 } catch (SQLException e) {
                     conn.rollback();
-                    LOGGER.error("write table constraints has occurred an exception,  detail:{}", e.getMessage());
+                    if (e.getMessage() != null && !e.getMessage().endsWith("already exists")) {
+                        LOGGER.error("write table constraints has occurred an exception,  detail:{}", e.getMessage());
+                    }
                     continue;
                 }
                 LOGGER.info("{} has finished to write table constraints", Thread.currentThread().getName());
