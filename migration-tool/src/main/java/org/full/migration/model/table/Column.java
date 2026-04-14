@@ -47,4 +47,12 @@ public class Column {
     private List<String> modifyKeys;
     private String comment;
     private String intervalType;
+   
+    /**
+     * char_used property for Oracle
+     * Used to store CHAR_USED information for CHAR, NCHAR, VARCHAR2 types in Oracle database
+     * For example: CHAR(10 char) CHAR_USED char
+     * For: VARCHAR2(10 byte) CHAR_USED byte
+     */
+    private String charUsed;
 }

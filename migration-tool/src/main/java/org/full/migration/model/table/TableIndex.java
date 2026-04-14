@@ -46,7 +46,7 @@ public class TableIndex {
     /**
      * Constructor
      *
-     * @param rs resultSet
+     * @param rs ResultSet
      * @throws SQLException SQLException
      */
     public TableIndex(ResultSet rs) throws SQLException {
@@ -57,5 +57,10 @@ public class TableIndex {
         this.isPrimaryKey = rs.getBoolean("is_primary_key");
         this.hasFilter = rs.getBoolean("has_filter");
         this.filterDefinition = rs.getString("filter_definition");
+    }
+
+    @Override
+    public String toString() {
+        return "TableIndex{" + tableName + ", " + indexName + ", " + indexType +'}';
     }
 }

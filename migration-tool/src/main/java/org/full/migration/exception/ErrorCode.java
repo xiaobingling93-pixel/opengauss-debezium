@@ -47,11 +47,11 @@ public enum ErrorCode {
     THREAD_POOL_INIT_FAILED("70801", "线程池初始化失败"),
     THREAD_POOL_TASK_EXECUTION_FAILED("70802", "线程池任务执行失败"),
     
-    // 外部系统错误
+    // DataX 外部系统错误
     DATAX_TOOLS_INITIALIZATION_ERROR("80900", "DataX工具初始化失败"),
-    DATAX_EXECUTION_FAILED("80901", "DataX执行失败"),
-    EXTERNAL_SYSTEM_TIMEOUT("80902", "外部系统超时"),
-    
+    DATAX_CONFIG_ERROR("80901", "DataX配置错误"),
+    DATAX_EXECUTION_FAILED("80902", "DataX执行失败"),
+
     // 其他错误
     UNKNOWN_ERROR("99999", "未知错误");
     

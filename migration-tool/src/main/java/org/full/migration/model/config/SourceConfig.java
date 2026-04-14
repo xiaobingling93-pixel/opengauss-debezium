@@ -81,10 +81,8 @@ public class SourceConfig {
     private Integer sleepLoop;
     private Integer indexParallelWorkers;
     private Boolean isMigrateDefaultValue;
-    @NotNull(message = "This parameter is required")
     private Boolean isRecordSnapshot;
     private String slotName;
-    @ValidPluginName
     private String pluginName;
     private Boolean isRestartConfig;
     private Boolean isCreateIndex;
