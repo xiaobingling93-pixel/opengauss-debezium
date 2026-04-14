@@ -1,0 +1,21 @@
+# Test environment configuration
+
+# Source database configuration
+source:
+  url: jdbc:oracle:thin:@//127.0.0.1:1521/racdb?oracle.jdbc.fanEnabled=false
+  username: username
+  password: your_password
+
+# Target database configuration
+target:
+  url: jdbc:oGRAC://127.0.0.1:1611
+  username: username
+  password: your_password
+
+# Test scenario configuration
+test:
+  log: enabled
+  scenarioPath: ./oracle_test_scenario
+  scripts:
+    # Whether to execute the general data procedure script
+    executeGeneralDataProcedure: true
