@@ -4,6 +4,9 @@
 
 package org.full.migration.jdbc;
 
+import org.full.migration.constants.OracleSqlConstants;
+import org.full.migration.exception.DatabaseConnectionException;
+import org.full.migration.exception.ErrorCode;
 import org.full.migration.model.config.DatabaseConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +23,19 @@ import java.util.Locale;
  */
 public class OracleConnection implements JdbcConnection {
     private static final Logger LOGGER = LoggerFactory.getLogger(OracleConnection.class);
-    private static final String JDBC_URL = "jdbc:oracle:thin:@//%s:%d/%s";
+    private static final String JDBC_URL = OracleSqlConstants.ORACLE_JDBC_URL;
+    private static final int RETRY_TIME = 3;
+    private static final long SLEEP_TIME = 3000;
+    
+    static {
+        try {
+            Class.forName("oracle.jdbc.OracleDriver");
+            LOGGER.info("Oracle driver loaded successfully");
+        } catch (ClassNotFoundException e) {
+            LOGGER.error("Oracle driver not found: {}", e.getMessage());
+            throw new ExceptionInInitializerError(new DatabaseConnectionException(ErrorCode.DRIVER_LOAD_FAILED.getCode(), "Failed to load Oracle driver", e));
+        }
+    }
     
     @Override
     public Connection getConnection(DatabaseConfig dbConfig) throws SQLException {

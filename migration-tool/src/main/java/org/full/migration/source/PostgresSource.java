@@ -228,6 +228,11 @@ public class PostgresSource extends SourceDatabase {
         return tables;
     }
 
+    @Override
+    protected String getDatabaseType() {
+        return "postgres";
+    }
+
     /**
      * createCustomOrDomainTypesSql
      *
@@ -515,6 +520,10 @@ public class PostgresSource extends SourceDatabase {
         return columnDdl.toString();
     }
 
+    @Override
+    public String getColumnDdl(Table table, List<Column> columns, String targetDatabaseType) {
+        return getColumnDdl(table, columns);
+    }
     /**
      * getColumnType
      *

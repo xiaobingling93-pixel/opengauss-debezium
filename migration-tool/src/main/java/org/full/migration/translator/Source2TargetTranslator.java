@@ -4,34 +4,69 @@
 
 package org.full.migration.translator;
 
+import org.full.migration.exception.TranslatorException;
+import org.full.migration.model.table.Column;
+
 import java.util.Optional;
 
 /**
  * Source2TargetTranslator
- * 源数据库到目标数据库的SQL转换器接口
- * 统管各种数据库到目标数据库的转换器实现
+ * SQL translator interface from source database to target database
+ * Manages various database to target database translator implementations
  *
  * @since 2025-06-06
  */
 public interface Source2TargetTranslator {
     /**
-     * 翻译SQL语句
-     * @param sqlIn 源数据库的SQL语句
-     * @param isDebug 是否开启调试模式
-     * @param isColumnCaseSensitive 是否区分列名大小写
-     * @return 转换后的SQL语句，如果转换失败则返回Optional.empty()
+     * Translate SQL statement
+     *
+     * @param sqlIn                 Source database SQL statement
+     * @param isDebug               Whether to enable debug mode
+     * @param isColumnCaseSensitive Whether column names are case sensitive
+     * @return Translated SQL statement, returns Optional.empty() if translation fails
      */
     Optional<String> translate(String sqlIn, boolean isDebug, boolean isColumnCaseSensitive);
-    
+
     /**
-     * 获取源数据库类型
-     * @return 源数据库类型
+     * translateColumnType
+     *
+     * @param tableName table name
+     * @param column column to translate column type
+     * @return translated column type string
+     * @throws TranslatorException 
+     */
+    Optional<String> translateColumnType(String tableName, Column column) throws TranslatorException;
+
+    /**
+     * Get source database type
+     *
+     * @return Source database type
      */
     String getSourceDatabaseType();
-    
+
     /**
-     * 获取目标数据库类型
-     * @return 目标数据库类型
+     * Get target database type
+     *
+     * @return Target database type
      */
     String getTargetDatabaseType();
+    
+    /**
+     * Translate index creation SQL statement
+     *
+     * @param indexType Source database index type
+     * @param isDebug Whether to enable debug mode
+     * @return Translated index creation SQL statement, returns Optional.empty() if translation fails
+     * @throws TranslatorException 
+     */
+    Optional<String> translateIndex(String indexType, boolean isDebug) throws TranslatorException ;
+    
+    /**
+     * Translate function call
+     *
+     * @param functionCall Source database function call
+     * @param isDebug Whether to enable debug mode
+     * @return Translated function call, returns Optional.empty() if translation fails
+     */
+    Optional<String> translateFunction(String functionCall, boolean isDebug);
 }

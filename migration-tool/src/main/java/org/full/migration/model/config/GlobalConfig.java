@@ -39,7 +39,6 @@ public class GlobalConfig {
     @NotNull(message = "This parameter is required and of boolean type")
     private Boolean isDumpJson;
     private Boolean isDeleteCsv;
-    @NotNull(message = "This parameter is required and of boolean type.")
     private Boolean isKeepExistingSchema;
     private AlertLogConfig alertLogConfig;
     private List<TypeOverride> typeOverrides;

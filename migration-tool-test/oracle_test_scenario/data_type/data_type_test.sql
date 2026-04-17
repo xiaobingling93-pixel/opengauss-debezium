@@ -110,14 +110,14 @@ INSERT INTO binary_type_test_table VALUES (
 -- 5. Boolean type test table
 -------------------------------------------------------------------------------
 CREATE TABLE boolean_type_test_table (
-    -- Boolean type
     id NUMBER PRIMARY KEY,
-    bool_col BOOLEAN                 -- Boolean type
+    bool_col CHAR(1) DEFAULT 'N' NOT NULL,  -- 替代布尔型
+    CONSTRAINT ck_bool_col CHECK (bool_col IN ('Y', 'N'))
 );
 
 -- Insert boolean type test data
-INSERT INTO boolean_type_test_table VALUES (1, TRUE);
-INSERT INTO boolean_type_test_table VALUES (2, FALSE);
+INSERT INTO boolean_type_test_table VALUES (1, 'Y');
+INSERT INTO boolean_type_test_table VALUES (2, 'N');
 
 -------------------------------------------------------------------------------
 -- 6. Special type test table

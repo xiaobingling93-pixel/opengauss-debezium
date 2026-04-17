@@ -23,6 +23,7 @@ import org.full.migration.exception.MigrationException;
 import org.full.migration.model.config.GlobalConfig;
 import org.full.migration.source.SourceDatabase;
 import org.full.migration.source.SourceDatabaseFactory;
+import org.full.migration.strategy.DataxTableMigration;
 import org.full.migration.strategy.MigrationStrategy;
 import org.full.migration.strategy.StrategyFactory;
 import org.full.migration.target.ITargetDatabase;
@@ -70,7 +71,6 @@ public class MigrationEngine {
                 return;
             }
             GlobalConfig globalConfig = globalConfigOptional.get();
-            // Apply scenario parameter checking strategy
             if (!ScenarioCheckStrategyFactory.getStrategy(sourceDbType).check(globalConfig, taskType)) {
                 LOGGER.error("Invalid configuration for task type: {} and source database: {}", taskType, sourceDbType);
                 return;
@@ -82,30 +82,44 @@ public class MigrationEngine {
                 LOGGER.error("Failed to create source database instance");
                 return;
             }
-
-            // Determine target database type
+            source.checkConnection();
             String targetDbType = getTargetDatabaseType(globalConfig);
             LOGGER.info("Migration scenario: source={}, target={}", sourceDbType, targetDbType);
 
-            // Use TargetDatabaseFactory to get the target database implementation
-            ITargetDatabase target = TargetDatabaseFactory.getTargetDatabase(sourceDbType, targetDbType, globalConfig);
-            if (target == null) {
-                LOGGER.error("Failed to create target database instance");
-                return;
+            ITargetDatabase target = null;
+            try {
+                target = TargetDatabaseFactory.getTargetDatabase(sourceDbType, targetDbType, globalConfig);
+                if (target == null) {
+                    LOGGER.error("Failed to create target database instance");
+                    return;
+                }
+                target.checkConnection();
+                StrategyFactory.buildStrategyMap(source, target);
+                MigrationStrategy strategy = StrategyFactory.getMigrationStrategy(taskType);
+                if (strategy == null) {
+                    LOGGER.error("--start parameter is invalid, please modify and retry");
+                    return;
+                }
+                if(strategy instanceof DataxTableMigration dataxTableMigration) {
+                    dataxTableMigration.initializedDataXTools(globalConfig.getDatax().getDataxHome());
+                }
+                if (globalConfig.getIsDumpJson()) {
+                    String statusDir = globalConfig.getStatusDir().replace("~", System.getProperty("user.home"));
+                    ProgressTracker.initInstance(statusDir, taskType);
+                }
+                strategy.migration(sourceDbType);
+            }  catch (Exception e) {
+                handleGeneralException(e);
+            } finally {
+                if (target != null) {
+                    try {
+                        target.shutdown();
+                    } catch (Exception e) {
+                        LOGGER.warn("Error during target database shutdown: {}", e.getMessage());
+                    }
+                }
             }
-
-            StrategyFactory.buildStrategyMap(source, target);
-            MigrationStrategy strategy = StrategyFactory.getMigrationStrategy(taskType);
-            if (strategy == null) {
-                LOGGER.error("--start parameter is invalid, please modify and retry");
-                return;
-            }
-            if (globalConfig.getIsDumpJson()) {
-                String statusDir = globalConfig.getStatusDir().replace("~", System.getProperty("user.home"));
-                ProgressTracker.initInstance(statusDir, taskType);
-            }
-            strategy.migration(sourceDbType);
-        }  catch (Exception e) {
+        } catch (Exception e) {
             handleGeneralException(e);
         }
     }

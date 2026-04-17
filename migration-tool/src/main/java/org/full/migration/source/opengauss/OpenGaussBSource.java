@@ -24,6 +24,11 @@ public class OpenGaussBSource extends OpenGaussSource {
     }
 
     @Override
+    protected String getDatabaseType() {
+        return "opengauss_b";
+    }
+
+    @Override
     String getQueryTableSql() {
         return OpenGaussConstants.QUERY_TABLE_SQL_B;
     }

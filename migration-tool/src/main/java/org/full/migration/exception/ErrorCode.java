@@ -12,8 +12,11 @@ public enum ErrorCode {
     CONFIG_FILE_NOT_FOUND("10101", "配置文件不存在"),
     CONFIG_FILE_FORMAT_ERROR("10102", "配置文件格式错误"),
     CONFIG_PARAMETER_INVALID("10103", "配置参数无效"),
-    
+    USER_NOT_EXIST("10104", "用户不存在"),
+    USER_NOT_PERMISSION("10105", "用户权限不足"),
+
     // 连接错误
+    DRIVER_LOAD_FAILED("20300", "数据库驱动加载失败"),
     CONNECTION_FAILED("20301", "数据库连接失败"),
     CONNECTION_TIMEOUT("20302", "数据库连接超时"),
     CONNECTION_CLOSED("20303", "数据库连接已关闭"),
@@ -54,6 +57,7 @@ public enum ErrorCode {
 
     // 其他错误
     UNKNOWN_ERROR("99999", "未知错误");
+
     
     private final String code;
     private final String message;

@@ -1,0 +1,38 @@
+# global settings
+# 是否记录进度
+isDumpJson: true
+# 进度文件地址
+statusDir: ./process
+targetType: ograc  # 目标数据库类型，如：opengauss, ograc
+# 目标端数据库配置
+ogConn:
+  host: "127.0.0.1"
+  port: 1611
+  user: "your_username"
+  password: "your_password"
+  database: "your_username"
+  charset: "utf8"
+  params:
+sourceConfig:
+  # 查询表的线程数
+  readerNum: 4
+  # 写表的线程数
+  writerNum: 4
+  threadQueueCapacity: 20000
+  # 源端数据库连接信息
+  dbConn:
+    host: "127.0.0.1"
+    port: "1521"
+    user: "your_username"
+    password: "your_password"
+    database: "oracle_instance"
+    charset: 'utf8'
+    connectTimeout: 1000
+  # schema映射关系
+  schemaMappings:
+    your_schema: your_schema
+
+datax:
+  dataxHome: datax
+  enableKeepDataXTemporaryConfig: true
+  enableOutputDataxLogs: true

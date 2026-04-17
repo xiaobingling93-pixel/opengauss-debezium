@@ -15,6 +15,8 @@
 
 package org.full.migration.translator;
 
+import org.full.migration.model.table.Column;
+
 import java.util.Optional;
 
 /**
@@ -27,6 +29,11 @@ public class OpenGauss2OpenGaussTranslator extends Source2OpenGaussTranslator {
     public Optional<String> translate(String sqlIn, boolean isDebug,
                                       boolean isColumnCaseSensitive) {
         return Optional.of(sqlIn);
+    }
+
+    @Override
+    public Optional<String> translateColumnType(String tableName, Column column) {
+        return Optional.empty();
     }
 
     @Override

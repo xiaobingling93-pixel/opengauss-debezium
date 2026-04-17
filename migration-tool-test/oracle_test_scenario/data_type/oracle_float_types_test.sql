@@ -92,17 +92,6 @@ INSERT INTO double_precision_test VALUES (5, 8.765432109876543e125);
 INSERT INTO double_precision_test VALUES (6, 0);
 INSERT INTO double_precision_test VALUES (7, 1);
 
-
--------------------------------------------------------------------------------
--- 查看表结构
--------------------------------------------------------------------------------
-DESC float_default_test;
-DESC float_prec_1_test;
-DESC float_prec_5_test;
-DESC float_prec_63_test;
-DESC float_prec_126_test;
-DESC double_precision_test;
-
 -------------------------------------------------------------------------------
 -- 查看所有数据，观察精度差异
 -------------------------------------------------------------------------------

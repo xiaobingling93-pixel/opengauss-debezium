@@ -16,6 +16,7 @@
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     <slf4j.version>2.0.12</slf4j.version>
     <logback.version>1.5.25</logback.version>
+    <maven.repo.local>D:\m2\repository</maven.repo.local>
   </properties>
 
   <dependencies>
@@ -38,9 +39,9 @@
       <version>${logback.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.opengauss</groupId>
-      <artifactId>opengauss-jdbc</artifactId>
-      <version>6.0.0-og</version>
+        <groupId>org.opengauss</groupId>
+        <artifactId>opengauss-jdbc</artifactId>
+        <version>7.0.0-RC3-og</version>
     </dependency>
     <dependency>
       <groupId>com.mysql</groupId>
@@ -84,6 +85,11 @@
       <version>6.2.11</version>
     </dependency>
     <dependency>
+      <groupId>org.springframework</groupId>
+      <artifactId>spring-beans</artifactId>
+      <version>6.2.11</version>
+    </dependency>
+    <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-lang3</artifactId>
       <version>3.18.0</version>
@@ -93,12 +99,7 @@
       <artifactId>commons-collections4</artifactId>
       <version>4.4</version>
     </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.13.2</version>
-      <scope>test</scope>
-    </dependency>
+
     <dependency>
       <groupId>org.yaml</groupId>
       <artifactId>snakeyaml</artifactId>
@@ -114,6 +115,12 @@
     <groupId>org.apache.commons</groupId>
     <artifactId>commons-math3</artifactId>
     <version>3.6.1</version>
+    </dependency>
+    <!-- MyBatis依赖 -->
+    <dependency>
+      <groupId>org.mybatis</groupId>
+      <artifactId>mybatis</artifactId>
+      <version>3.5.16</version>
     </dependency>
     <!-- Bean Validation -->
     <dependency>

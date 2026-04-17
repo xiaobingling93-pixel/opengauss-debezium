@@ -161,6 +161,11 @@ public class SqlServerSource extends SourceDatabase {
     }
 
     @Override
+    protected String getDatabaseType() {
+        return "sqlserver";
+    }
+
+    @Override
     public String getColumnDdl(Table table, List<Column> columns) {
         StringJoiner columnDdl = new StringJoiner(", ");
         for (Column column : columns) {
@@ -224,6 +229,11 @@ public class SqlServerSource extends SourceDatabase {
             builder.append(" default ").append(SqlServerFuncTranslator.convertDefinition(defaultValue));
         }
         return builder.toString();
+    }
+
+    @Override
+    public String getColumnDdl(Table table, List<Column> columns, String targetDatabaseType) {
+        return getColumnDdl(table, columns);
     }
 
     private static boolean hasLengthLimit(String typeName, long length) {

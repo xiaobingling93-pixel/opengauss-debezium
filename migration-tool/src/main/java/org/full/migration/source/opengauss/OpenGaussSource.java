@@ -513,6 +513,11 @@ public abstract class OpenGaussSource extends SourceDatabase {
         return columnDdl.toString();
     }
 
+    @Override
+    public String getColumnDdl(Table table, List<Column> columns, String targetDatabaseType) {
+        return getColumnDdl(table, columns);
+    }
+
     /**
      * getColumnType
      *

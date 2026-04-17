@@ -17,8 +17,7 @@ package org.full.migration;
 
 import org.full.migration.constants.CommonConstants;
 import org.full.migration.coordinator.MigrationEngine;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.full.migration.logger.LogManager;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -29,7 +28,6 @@ import java.util.Map;
  * @since 2025-04-18
  */
 public class Starter {
-    private static final Logger LOGGER = LoggerFactory.getLogger(Starter.class);
     private static Map<String, String> commandMap = new HashMap<>();
 
     /**
@@ -39,16 +37,24 @@ public class Starter {
      */
     public static void main(String[] args) {
         if (args.length % 2 != 0) {
-            LOGGER.error("input error, please check parameters.");
+            System.err.println("input error, please check parameters.");
             return;
         }
         for (int i = 0; i < args.length; i += 2) {
             commandMap.put(args[i], args[i + 1]);
         }
+
+        String logFile = commandMap.get("--log-file");
+        LogManager.initializeLogFile(logFile);
+        String logLevel = commandMap.get("--log-level");
+        LogManager.setLogLevel(logLevel);
+        
         String taskType = commandMap.get(CommonConstants.TASK_TYPE);
         String sourceDatabase = commandMap.get(CommonConstants.SOURCE_DATABASE);
         String configPath = commandMap.get(CommonConstants.CONFIG_PATH);
+        System.out.println("Starting migration task: " + taskType + " from " + sourceDatabase);
         MigrationEngine dispatcher = new MigrationEngine(taskType, sourceDatabase, configPath);
         dispatcher.dispatch();
+        System.out.println("Migration task completed successfully");
     }
 }

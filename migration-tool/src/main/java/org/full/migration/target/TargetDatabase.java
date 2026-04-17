@@ -23,6 +23,8 @@ import org.full.migration.constants.CommonConstants;
 import org.full.migration.coordinator.ProgressTracker;
 import org.full.migration.coordinator.QueueManager;
 import org.full.migration.enums.SqlCompatibilityEnum;
+import org.full.migration.exception.DatabaseConnectionException;
+import org.full.migration.exception.ErrorCode;
 import org.full.migration.jdbc.JdbcConnection;
 import org.full.migration.jdbc.OpenGaussConnection;
 import org.full.migration.model.object.DbObject;
@@ -82,7 +84,7 @@ import java.util.regex.Pattern;
  * @since 2025-04-18
  */
 @Data
-public class TargetDatabase implements ITargetDatabase{
+public class TargetDatabase extends AbstractTargetDatabase{
     private static final Logger LOGGER = LoggerFactory.getLogger(TargetDatabase.class);
     private static final Pattern CSV_SPLIT_PATTERN = Pattern.compile(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)");
     private static final String CREATE_SCHEMA_SQL = "create schema if not exists \"%s\"";
@@ -105,7 +107,7 @@ public class TargetDatabase implements ITargetDatabase{
      * connection
      */
     protected JdbcConnection connection;
-    private boolean isJsonDump;
+   
     private BigInteger spacePerSlice;
     private boolean isDeleteCsv;
     private boolean isKeepExistingSchema;
@@ -119,8 +121,9 @@ public class TargetDatabase implements ITargetDatabase{
      * @param targetSqlCompatibility targetSqlCompatibility
      */
     public TargetDatabase(GlobalConfig globalConfig, SqlCompatibilityEnum targetSqlCompatibility) {
+        super(globalConfig);
         this.dbConfig = globalConfig.getOgConn();
-        this.isJsonDump = globalConfig.getIsDumpJson();
+       
         this.spacePerSlice = globalConfig.getSourceConfig().convertFileSize();
         this.isDeleteCsv = globalConfig.getIsDeleteCsv();
         this.isKeepExistingSchema = globalConfig.getIsKeepExistingSchema();
@@ -336,19 +339,6 @@ public class TargetDatabase implements ITargetDatabase{
         } catch (SQLException e) {
             LOGGER.error("{}.{} snapshot information has failed to insert into sch_debezium.pg_replica_tables, errMsg:{}",
                     schemaName, tableName, e.getMessage());
-        }
-    }
-
-    private void copyMeta(TableMeta tableMeta, Connection conn) throws SQLException {
-        try (Statement statement = conn.createStatement()) {
-            Table table = tableMeta.getTable();
-            conn.setAutoCommit(false);
-            conn.setSchema(table.getTargetSchemaName());
-            statement.execute(String.format(DROP_TABLE_SQL, table.getTableName()));
-            statement.execute(tableMeta.getCreateTableSql());
-            conn.commit();
-            createdTables.add(table.getTargetSchemaName() + "." + table.getTableName());
-            LOGGER.info("create {}.{} success", table.getTargetSchemaName(), table.getTableName());
         }
     }
 
@@ -689,52 +679,7 @@ public class TargetDatabase implements ITargetDatabase{
             "table foreign key");
     }
 
-    /**
-     * writeKeyOrIndex
-     *
-     * @param sqlGenerator sqlGenerator
-     * @param queueName queueName
-     * @param logPrefix logPrefix
-     */
-    public void writeKeyOrIndex(Function<Object, Optional<String>> sqlGenerator, String queueName, String logPrefix) {
-        try (Connection conn = connection.getConnection(dbConfig); Statement statement = conn.createStatement()) {
-            while (!QueueManager.getInstance().isQueuePollEnd(queueName)) {
-                Object object = QueueManager.getInstance().pollQueue(queueName);
-                if (object == null) {
-                    LOGGER.debug("{} poll from queue is null, to write {}.", Thread.currentThread().getName(),
-                        logPrefix);
-                    continue;
-                }
-                try {
-                    String sql = sqlGenerator.apply(object)
-                        .orElseThrow(() -> new SQLException("This object is not currently supported."));
-                    statement.executeUpdate(sql);
-                } catch (SQLException e) {
-                    LOGGER.error("write {} has occurred an exception,  detail:{}", logPrefix, e.getMessage());
-                    continue;
-                }
-                LOGGER.info("{} has finished to write {}", Thread.currentThread().getName(), logPrefix);
-
-                if (isJsonDump) {
-                    if (object instanceof TablePrimaryKey) {
-                        TablePrimaryKey tablePrimaryKey = (TablePrimaryKey) object;
-                        ProgressTracker.getInstance()
-                            .upgradeKeyAndIndexProgressMap(tablePrimaryKey.getSchemaName()+tablePrimaryKey.getPkName(), ProgressStatus.MIGRATED_COMPLETE, StringUtils.EMPTY);
-                    } else if (object instanceof TableForeignKey) {
-                        TableForeignKey  tableForeignKey= (TableForeignKey) object;
-                        ProgressTracker.getInstance()
-                                .upgradeKeyAndIndexProgressMap(tableForeignKey.getSchemaName()+tableForeignKey.getFkName(), ProgressStatus.MIGRATED_COMPLETE, StringUtils.EMPTY);
-                    } else if (object instanceof TableIndex) {
-                        TableIndex  tableIndex= (TableIndex) object;
-                        ProgressTracker.getInstance()
-                                .upgradeKeyAndIndexProgressMap(tableIndex.getSchemaName()+tableIndex.getIndexName(), ProgressStatus.MIGRATED_COMPLETE, StringUtils.EMPTY);
-                    }
-                }
-            }
-        } catch (SQLException e) {
-            LOGGER.warn("Initial connection error while writing {}, detail: {}", logPrefix, e.getMessage());
-        }
-    }
+   
 
     private Optional<String> getCreateIndexSql(TableIndex tableIndex) {
         Optional<String> indexSqlTempOptional = getIndexSqlTemp(tableIndex);
@@ -823,35 +768,7 @@ public class TargetDatabase implements ITargetDatabase{
             statement.execute(CommonConstants.DROP_REPLICA_SCHEMA_SQL);
             LOGGER.info("drop replica schema(sch_debezium) success.");
         } catch (SQLException e) {
-        LOGGER.warn("drop replica schema(sch_debezium) has occurred an exception, detail:{}", e.getMessage());
-    }
-    }
-
-
-    public void writeConstraints() {
-        try (Connection conn = connection.getConnection(dbConfig); Statement statement = conn.createStatement()) {
-            while (!QueueManager.getInstance().isQueuePollEnd(QueueManager.TABLE_CONSTRAINT_QUEUE)) {
-                String alterSql = (String) QueueManager.getInstance().pollQueue(QueueManager.TABLE_CONSTRAINT_QUEUE);
-                if (alterSql == null) {
-                    LOGGER.debug("{} poll from queue is null, to write table constraints.",
-                        Thread.currentThread().getName());
-                    continue;
-                }
-                try {
-                    conn.setAutoCommit(false);
-                    statement.execute(alterSql);
-                    conn.commit();
-                } catch (SQLException e) {
-                    conn.rollback();
-                    if (e.getMessage() != null && !e.getMessage().endsWith("already exists")) {
-                        LOGGER.error("write table constraints has occurred an exception,  detail:{}", e.getMessage());
-                    }
-                    continue;
-                }
-                LOGGER.info("{} has finished to write table constraints", Thread.currentThread().getName());
-            }
-        } catch (SQLException e) {
-            LOGGER.warn("Initial connection error while writing table constraints, detail: {}", e.getMessage());
+            LOGGER.error("drop replica schema(sch_debezium) has occurred an exception, detail:{}", e.getMessage());
         }
     }
 }

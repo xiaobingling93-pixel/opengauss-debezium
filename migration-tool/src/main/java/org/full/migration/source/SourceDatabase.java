@@ -21,6 +21,9 @@ import org.apache.commons.lang3.StringUtils;
 import org.full.migration.constants.CommonConstants;
 import org.full.migration.coordinator.ProgressTracker;
 import org.full.migration.coordinator.QueueManager;
+import org.full.migration.exception.DatabaseConnectionException;
+import org.full.migration.exception.ErrorCode;
+import org.full.migration.exception.TranslatorException;
 import org.full.migration.jdbc.JdbcConnection;
 import org.full.migration.model.object.DbObject;
 import org.full.migration.model.PostgresCustomTypeMeta;
@@ -36,6 +39,7 @@ import org.full.migration.model.table.TableForeignKey;
 import org.full.migration.model.table.TableIndex;
 import org.full.migration.model.table.TableMeta;
 import org.full.migration.model.table.TablePrimaryKey;
+import org.full.migration.source.constraint.ConstraintProcessor;
 import org.full.migration.source.service.SourceTableService;
 import org.full.migration.utils.FileUtils;
 import org.full.migration.utils.HexConverter;
@@ -102,6 +106,20 @@ public abstract class SourceDatabase {
     }
 
     /**
+     * Check the connection to the target database  
+     * 
+     * @throws DatabaseConnectionException
+     */
+    public void checkConnection() throws DatabaseConnectionException{
+        try (Connection conn = connection.getConnection(sourceConfig.getDbConn())) {
+            conn.isValid(10);
+        } catch (SQLException e) {
+            LOGGER.error("Error validating connection: {}", e.getMessage());
+            throw new DatabaseConnectionException(ErrorCode.CONNECTION_FAILED.getCode(),"Connection validation failed", e);
+        }
+    }
+    
+    /**
      * getQueryTableSql
      *
      * @param schema schema
@@ -109,6 +127,13 @@ public abstract class SourceDatabase {
      */
     protected abstract List<Table> getSchemaAllTables(String schema, Connection conn);
 
+    /**
+     * getDatabaseType
+     *
+     * @return database type
+     */
+    protected abstract String getDatabaseType();
+    
     /**
      * createCustomOrDomainTypesSql
      *
@@ -190,8 +215,19 @@ public abstract class SourceDatabase {
      * @param table
      * @param columns
      * @return columnDdl
+     * @throws TranslatorException TranslatorException
      */
-    public abstract String getColumnDdl(Table table, List<Column> columns);
+    public abstract String getColumnDdl(Table table, List<Column> columns) throws TranslatorException;
+
+    /**
+     * getColumnDdl
+     * @param table
+     * @param columns
+     * @param targetDatabaseType
+     * @return columnDdl 
+     * @throws TranslatorException TranslatorException
+     */
+    public abstract String getColumnDdl(Table table, List<Column> columns,String targetDatabaseType) throws TranslatorException;
 
     /**
      * getIsolationSql
@@ -241,8 +277,9 @@ public abstract class SourceDatabase {
      * @param rs rs
      * @return definition
      * @throws SQLException SQLException
+     * @throws TranslatorException 
      */
-    protected abstract String convertDefinition(String objectType, ResultSet rs) throws SQLException;
+    protected abstract String convertDefinition(String objectType, ResultSet rs) throws SQLException, TranslatorException;
 
     /**
      * getQueryIndexSql
@@ -328,7 +365,7 @@ public abstract class SourceDatabase {
      * @param conn conn
      * @return isSkipTable
      */
-    private boolean isNotNeedMigraTable(String schema, String tableName, Connection conn) {
+    public boolean isNotNeedMigraTable(String schema, String tableName, Connection conn) {
         boolean isSkipTable = sourceTableService.isSkipTable(schema, tableName);
         if (isSkipTable || isPartitionChildTable(schema, tableName, conn)) {
             return true;
@@ -406,11 +443,12 @@ public abstract class SourceDatabase {
                         ProgressTracker.getInstance().putProgressMap(schema, tableName);
                     }
                 }
+                LOGGER.info("success to query {} all tables , total {} tables.", schema, tables.size());
             }
             if (isDumpJson) {
                 ProgressTracker.getInstance().recordTableProgress();
             }
-            LOGGER.info("success to query all tables...");
+            
         } catch (SQLException e) {
             LOGGER.error("fail to query table list, error message:{}.", e.getMessage());
         }
@@ -441,10 +479,13 @@ public abstract class SourceDatabase {
                         if (IsColumnGenerate(conn, schema, tableName, column) && generateInfoOptional.isPresent()) {
                             column.setGenerated(true);
                             column.setGenerateInfo(generateInfoOptional.get());
+                        } else {
+                            column.setGenerated(false);
                         }
                         columns.add(column);
                     });
                 }
+                
                 // 构造建表语句
                 String partitionDdl = null;
                 if (table.isPartition()) {
@@ -463,6 +504,7 @@ public abstract class SourceDatabase {
                 if (!createTableSqlOptional.isPresent()) {
                     continue;
                 }
+                LOGGER.debug("{}",createTableSqlOptional.get());
                 QueueManager.getInstance()
                     .putToQueue(QueueManager.SOURCE_TABLE_META_QUEUE,
                         new TableMeta(table, createTableSqlOptional.get(), columns, parents));
@@ -710,18 +752,25 @@ public abstract class SourceDatabase {
                 String objectName = rs.getString("name");
                 dbObject.setSchema(schema);
                 dbObject.setName(objectName);
-                dbObject.setDefinition(convertDefinition(objectType, rs));
-                LOGGER.debug("read object, type:{}, object Name:{}", objectType, dbObject.getName());
-                QueueManager.getInstance().putToQueue(QueueManager.OBJECT_QUEUE, dbObject);
-                if (isDumpJson) {
-                    ProgressTracker.getInstance().putProgressMap(schema, objectName);
+                String definition = convertDefinition(objectType, rs);
+                if (definition != null) {
+                    dbObject.setDefinition(definition);
+                    LOGGER.info("read object, type: {}, object Name:{}", objectType, dbObject.getName());
+                    QueueManager.getInstance().putToQueue(QueueManager.OBJECT_QUEUE, dbObject);
+                    if (isDumpJson) {
+                        ProgressTracker.getInstance().putProgressMap(schema, objectName);
+                    }
+                } else {
+                    LOGGER.warn("Object definition is null, skipping object: {}, type: {}", objectName, objectType);
                 }
             }
             if (isDumpJson) {
                 ProgressTracker.getInstance().recordObjectProgress(TaskTypeEnum.getTaskTypeEnum(objectType));
             }
         } catch (SQLException e) {
-            LOGGER.error("fail to read {}, errorMsg:{}", objectType, e.getMessage());
+            LOGGER.error("fail to read {}, errorMsg:{}", objectType, e.getMessage(), e);
+        } catch (TranslatorException e) {
+            LOGGER.error("fail to read {}, errorMsg:{}", objectType, e.getMessage(), e);
         }
         QueueManager.getInstance().setReadFinished(QueueManager.OBJECT_QUEUE, true);
     }
@@ -756,7 +805,9 @@ public abstract class SourceDatabase {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.error("fail to read indexes, errorMsg:{}", e.getMessage());
+            LOGGER.error("fail to read indexes, errorMsg:{}", e.getMessage(), e);
+        } catch (Exception e) {
+            LOGGER.error("fail to read indexes, errorMsg:{}", e.getMessage(), e);
         }
         QueueManager.getInstance().setReadFinished(QueueManager.TABLE_INDEX_QUEUE, true);
         LOGGER.info("end to read table indexes.");
@@ -824,7 +875,7 @@ public abstract class SourceDatabase {
                 }
             }
         } catch (SQLException e) {
-            LOGGER.error("fail to read views, errorMsg:{}", e.getMessage());
+            LOGGER.error("fail to read table foreign keys, errorMsg:{}", e.getMessage(), e);
         }
         QueueManager.getInstance().setReadFinished(QueueManager.TABLE_FOREIGN_KEY_QUEUE, true);
         LOGGER.info("end to read table foreign keys.");
@@ -841,13 +892,13 @@ public abstract class SourceDatabase {
                 processSchemaConstraints(conn, schema);
             }
         } catch (SQLException e) {
-            LOGGER.error("fail to read table constraints, errorMsg:{}", e.getMessage());
+            LOGGER.error("fail to read table constraints, errorMsg:{}", e.getMessage(), e);
         }
         QueueManager.getInstance().setReadFinished(QueueManager.TABLE_CONSTRAINT_QUEUE, true);
         LOGGER.info("end to read table constraints.");
     }
 
-    private void processSchemaConstraints(Connection conn, String schema) throws SQLException {
+    public void processSchemaConstraints(Connection conn, String schema) throws SQLException {
         String targetSchema = sourceConfig.getSchemaMappings().get(schema);
         processConstraints(conn, schema, getQueryUniqueConstraint(),
             (tableName, constraintName, columns) -> buildUniqueConstraintSql(targetSchema, tableName, constraintName,
@@ -858,7 +909,7 @@ public abstract class SourceDatabase {
         }, "check");
     }
 
-    private void processConstraints(Connection conn, String schema, String query, ConstraintProcessor processor,
+    public void processConstraints(Connection conn, String schema, String query, ConstraintProcessor processor,
         String constraintType) throws SQLException {
         try (PreparedStatement pstmt = conn.prepareStatement(query)) {
             pstmt.setString(1, schema);
@@ -872,27 +923,36 @@ public abstract class SourceDatabase {
                     String constraintValue = constraintType.equals("unique")
                         ? rs.getString("columns")
                         : rs.getString("definition");
-                    String sql = processor.process(tableName, constraintName, constraintValue);
-                    QueueManager.getInstance().putToQueue(QueueManager.TABLE_CONSTRAINT_QUEUE, sql);
+                   try {
+                        String sql = processor.process(tableName, constraintName, constraintValue);
+                        QueueManager.getInstance().putToQueue(QueueManager.TABLE_CONSTRAINT_QUEUE, sql);
+                    } catch (TranslatorException e) {
+                        LOGGER.error("fail to process constraint, errorMsg:{}", e.getMessage(), e);
+                    }
                 }
             }
         }
     }
 
-    @FunctionalInterface
-    private interface ConstraintProcessor {
-        String process(String tableName, String constraintName, String constraintValue);
-    }
 
-    private String buildUniqueConstraintSql(String schemaName, String tableName, String constraintName,
-        String uniqueColumns) {
+    public String buildUniqueConstraintSql(String schemaName, String tableName, String constraintName,
+            String uniqueColumns) throws TranslatorException {
+        if (uniqueColumns == null || uniqueColumns.isEmpty()) {
+            throw new TranslatorException(ErrorCode.SQL_TRANSLATION_FAILED.getCode(),
+                    String.format("Unique constraint %s on table %s has null columns", constraintName, tableName));
+        }
         String columns = String.join(", ", uniqueColumns.split(","));
         return String.format("ALTER TABLE %s.%s ADD CONSTRAINT \"%s\" UNIQUE (%s)", schemaName, tableName,
-            constraintName, columns);
+                constraintName, columns);
     }
 
-    private String buildCheckConstraintSql(String schema, String tableName, String constraintName, String definition) {
+    public String buildCheckConstraintSql(String schema, String tableName, String constraintName, String definition)
+            throws TranslatorException {
+        if (definition == null || definition.isEmpty()) {
+            throw new TranslatorException(ErrorCode.SQL_TRANSLATION_FAILED.getCode(),
+                    String.format("Check constraint %s on table %s has null definition", constraintName, tableName));
+        }
         return String.format("ALTER TABLE %s.%s ADD CONSTRAINT %s CHECK (%s)", schema, tableName, constraintName,
-            definition);
+                definition);
     }
 }

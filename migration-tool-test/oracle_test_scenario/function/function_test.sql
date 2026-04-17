@@ -1,15 +1,15 @@
 -- 创建测试表
-CREATE TABLE procedure_test_table (
+CREATE TABLE function_test_table (
     id NUMBER PRIMARY KEY,
     department VARCHAR2(50),
     salary NUMBER
 );
 
 -- 插入测试数据
-INSERT INTO procedure_test_table (id, department, salary) VALUES (1, 'IT', 5000);
-INSERT INTO procedure_test_table (id, department, salary) VALUES (2, 'IT', 6000);
-INSERT INTO procedure_test_table (id, department, salary) VALUES (3, 'HR', 4000);
-INSERT INTO procedure_test_table (id, department, salary) VALUES (4, 'HR', 4500);
+INSERT INTO function_test_table (id, department, salary) VALUES (1, 'IT', 5000);
+INSERT INTO function_test_table (id, department, salary) VALUES (2, 'IT', 6000);
+INSERT INTO function_test_table (id, department, salary) VALUES (3, 'HR', 4000);
+INSERT INTO function_test_table (id, department, salary) VALUES (4, 'HR', 4500);
 COMMIT;
 
 -- 1. 基本函数
@@ -37,7 +37,7 @@ CREATE OR REPLACE FUNCTION aggregate_function (
 BEGIN
     SELECT AVG(salary)
     INTO v_avg_salary
-    FROM procedure_test_table
+    FROM function_test_table
     WHERE department = p_department;
     
     RETURN v_avg_salary;

@@ -17,6 +17,7 @@ package org.full.migration.strategy;
 
 import org.full.migration.coordinator.ProgressTracker;
 import org.full.migration.coordinator.QueueManager;
+import org.full.migration.exception.MigrationException;
 import org.full.migration.source.SourceDatabase;
 import org.full.migration.target.ITargetDatabase;
 import org.slf4j.Logger;
@@ -57,8 +58,9 @@ public abstract class MigrationStrategy {
 
     /**
      * migration
+     * @throws MigrationException 
      */
-    public abstract void migration(String sourceDbType);
+    public abstract void migration(String sourceDbType) throws MigrationException;
 
     /**
      * sleep

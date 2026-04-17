@@ -12,6 +12,11 @@ package org.full.migration.constants;
  */
 public class OracleSqlConstants {
     /**
+     * Oracle JDBC URL
+     */
+    public static final String ORACLE_JDBC_URL = "jdbc:oracle:thin:@//%s:%d/%s?oracle.jdbc.fanEnabled=false";
+
+    /**
      * SQL for querying tables
      */
     public static final String QUERY_TABLE_SQL = """
@@ -44,13 +49,18 @@ public class OracleSqlConstants {
     """;
 
     public static final String QUERY_TB_COLUMN_SQL = """
-        SELECT t.table_name,
-            LISTAGG(c.column_name, ', ') WITHIN GROUP (ORDER BY c.column_id) AS tb_columns
+       SELECT  t.table_name,
+            LISTAGG(
+                CASE
+                    WHEN c.data_type = 'XMLTYPE' THEN 'XMLSerialize(CONTENT ' || c.column_name || ' AS CLOB) AS ' || c.column_name
+                    ELSE c.column_name
+                END,
+                ', '
+            ) WITHIN GROUP (ORDER BY c.column_id) AS tb_columns
         FROM user_tables t
         JOIN user_tab_cols c ON t.table_name = c.table_name
-        WHERE t.table_name NOT LIKE 'DR$%'  AND c.virtual_column = 'NO'
-        GROUP BY t.table_name
-        ORDER BY t.table_name
+        WHERE t.table_name NOT LIKE 'DR$%'  AND c.hidden_column = 'NO'
+        GROUP BY t.table_name  ORDER BY t.table_name
     """;
 
 
@@ -58,14 +68,14 @@ public class OracleSqlConstants {
      * SQL for querying views
      */
     public static final String QUERY_VIEW_SQL = """
-        SELECT view_name, text FROM user_views ORDER BY view_name
+        SELECT view_name name, text definition FROM user_views ORDER BY view_name
     """;
 
     /**
      * SQL for querying functions
      */
     public static final String QUERY_FUNCTION_SQL = """
-        SELECT object_name, dbms_metadata.get_ddl('FUNCTION', object_name) AS definition
+        SELECT object_name name, dbms_metadata.get_ddl('FUNCTION', object_name) AS definition
         FROM user_objects WHERE object_type = 'FUNCTION' ORDER BY object_name
     """;
 
@@ -73,7 +83,7 @@ public class OracleSqlConstants {
      * SQL for querying triggers
      */
     public static final String QUERY_TRIGGER_SQL = """
-        SELECT trigger_name, trigger_type, triggering_event, table_name, status,
+        SELECT trigger_name name, trigger_type, triggering_event, table_name, status,
                dbms_metadata.get_ddl('TRIGGER', trigger_name) AS definition
         FROM user_triggers ORDER BY trigger_name
     """;
@@ -82,25 +92,17 @@ public class OracleSqlConstants {
      * SQL for querying procedures
      */
     public static final String QUERY_PROCEDURE_SQL = """
-        SELECT object_name, dbms_metadata.get_ddl('PROCEDURE', object_name) AS definition
+        SELECT object_name name, dbms_metadata.get_ddl('PROCEDURE', object_name) AS definition
         FROM user_objects WHERE object_type = 'PROCEDURE' ORDER BY object_name
     """;
 
     /**
-     * SQL for querying sequences and their table relationships
+     * SQL for querying sequences
      */
     public static final String QUERY_SEQUENCE_SQL = """
-        SELECT s.sequence_name, s.min_value, s.max_value, s.increment_by, s.cycle_flag,
-               s.order_flag, s.cache_size, s.last_number, t.table_name, c.column_name
+        SELECT s.sequence_name AS name, s.min_value, s.max_value, s.increment_by, s.cycle_flag,
+               s.order_flag, s.cache_size, s.last_number
         FROM user_sequences s
-        LEFT JOIN (
-            SELECT table_name, column_name,
-                   DBMS_LOB.SUBSTR(TO_LOB(data_default), 4000) AS data_default_str
-            FROM user_tab_columns
-            WHERE data_default IS NOT NULL
-        ) c ON 1=1
-        LEFT JOIN user_tables t ON t.table_name = c.table_name
-        WHERE c.data_default_str LIKE s.sequence_name || '.NEXTVAL'
         ORDER BY s.sequence_name
     """;
 
@@ -110,15 +112,15 @@ public class OracleSqlConstants {
      * SQL for querying foreign keys
      */
     public static final String QUERY_FK_SQL = """
-        SELECT a.constraint_name AS fk_name, a.table_name,
-               LISTAGG(b.column_name, ', ') WITHIN GROUP (ORDER BY b.position) AS fk_columns,
-               c.table_name AS ref_table,
-               LISTAGG(d.column_name, ', ') WITHIN GROUP (ORDER BY d.position) AS ref_columns
+        SELECT a.constraint_name AS fk_name, a.table_name parent_table,
+               LISTAGG(b.column_name, ', ') WITHIN GROUP (ORDER BY b.position) AS parent_columns,
+               c.table_name AS referenced_table,
+               LISTAGG(d.column_name, ', ') WITHIN GROUP (ORDER BY d.position) AS referenced_columns
         FROM user_constraints a
         JOIN user_cons_columns b ON a.constraint_name = b.constraint_name
         JOIN user_constraints c ON a.r_constraint_name = c.constraint_name
         JOIN user_cons_columns d ON c.constraint_name = d.constraint_name
-        WHERE a.owner = ? AND a.constraint_type = 'R'
+        WHERE a.owner = '%s' AND a.constraint_type = 'R'
         GROUP BY a.constraint_name, a.table_name, c.table_name
         ORDER BY a.table_name, a.constraint_name
     """;
@@ -155,30 +157,29 @@ public class OracleSqlConstants {
      * SQL for querying generate column define
      */
     public static final String QUERY_GENERATE_DEFINE_SQL = """
-        SELECT COLUMN_NAME, DATA_DEFAULT AS EXPRESSION, VIRTUAL_COLUMN FROM USER_TAB_COLS
-        WHERE TABLE_NAME = ? AND COLUMN_NAME = ?
+        SELECT COLUMN_NAME,DATA_TYPE, DATA_DEFAULT AS EXPRESSION, VIRTUAL_COLUMN FROM USER_TAB_COLS
+        WHERE HIDDEN_COLUMN = 'NO' AND TABLE_NAME = ? AND COLUMN_NAME = ? 
     """;
     
     /**
      * SQL for querying unique constraints
-     * sql parameter placeholder is ?, this values is oracle table owner
      */
     public static final String QUERY_UNIQUE_CONSTRAINT_SQL = """
-        SELECT table_name, constraint_name, column_name AS columns
-        FROM user_cons_columns
-        WHERE owner = ? AND constraint_name IN
-        (SELECT constraint_name FROM user_constraints WHERE owner = ? AND constraint_type = 'U')
-        ORDER BY table_name, constraint_name, position
+        SELECT ucc.table_name,  ucc.constraint_name, LISTAGG(ucc.column_name, ', ') WITHIN GROUP (ORDER BY ucc.position) AS columns
+        FROM  user_cons_columns ucc
+        JOIN user_constraints uc ON uc.constraint_name = ucc.constraint_name AND uc.constraint_type = 'U'
+        WHERE ucc.table_name not like '%BIN$%' and ucc.table_name not like '%DR$%'
+        GROUP BY ucc.table_name, ucc.constraint_name
+        ORDER BY ucc.table_name, ucc.constraint_name
     """;
     
     /**
      * SQL for querying check constraints
-     * sql parameter placeholder is ?, this values is oracle table owner
      */
     public static final String QUERY_CHECK_CONSTRAINT_SQL = """
-        SELECT table_name, constraint_name, search_condition AS definition
-        FROM user_constraints
-        WHERE owner = ? AND constraint_type = 'C'
+        SELECT table_name, constraint_name, search_condition_vc AS definition
+        FROM user_constraints WHERE constraint_type = 'C' and 
+        table_name not like '%BIN$%' and table_name not like '%DR$%'
         ORDER BY table_name, constraint_name
     """;
 
@@ -244,6 +245,20 @@ public class OracleSqlConstants {
      */
     public static final String QUERY_COLUMN_CHAR_USED_SQL = """
         SELECT column_name, char_used FROM user_tab_columns WHERE table_name = ?
+    """;
+
+    /**
+     * SQL for querying column comment
+     */
+    public static final String QUERY_COLUMN_COMMENT_SQL = """
+        SELECT column_name, comments FROM user_col_comments WHERE table_name = ?
+    """;
+    
+    /**
+     * SQL for querying table comment
+     */
+    public static final String QUERY_TABLE_COMMENT_SQL = """
+        SELECT COMMENTS FROM user_tab_comments WHERE TABLE_NAME = ?
     """;
 
 }

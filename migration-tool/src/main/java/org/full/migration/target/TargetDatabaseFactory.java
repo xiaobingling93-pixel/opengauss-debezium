@@ -5,8 +5,7 @@
 package org.full.migration.target;
 
 import org.full.migration.enums.SqlCompatibilityEnum;
-import org.full.migration.exception.ErrorCode;
-import org.full.migration.exception.TargetDatabaseException;
+import org.full.migration.exception.MigrationException;
 import org.full.migration.model.config.DatabaseConfig;
 import org.full.migration.model.config.GlobalConfig;
 import org.full.migration.utils.OpenGaussUtils;
@@ -23,7 +22,7 @@ import java.sql.SQLException;
  */
 public class TargetDatabaseFactory {
     private static final Logger LOGGER = LoggerFactory.getLogger(TargetDatabaseFactory.class);
-    
+
     /**
      * getTargetDatabase
      * Create appropriate target database implementation based on source and target database types
@@ -32,15 +31,15 @@ public class TargetDatabaseFactory {
      * @param targetDbType Target database type
      * @param globalConfig Global configuration
      * @return Target database implementation
+     * @throws MigrationException If DataX initialization fails
      */
-    public static ITargetDatabase getTargetDatabase(String sourceDbType, String targetDbType, GlobalConfig globalConfig)
-            throws TargetDatabaseException {
+    public static ITargetDatabase getTargetDatabase(String sourceDbType, String targetDbType,
+                                                    GlobalConfig globalConfig) throws MigrationException {
         LOGGER.info("Creating target database for source: {}, target: {}", sourceDbType, targetDbType);
-        
         // Check if DataX mode is needed
-        if (isDataXScenario(sourceDbType, targetDbType)) {
-            LOGGER.info("Using DataXTargetDatabase for DataX scenario");
-            throw new TargetDatabaseException(ErrorCode.TARGET_DATABASE_NOT_SUPPORT.getCode(), targetDbType);
+        if (isOracle2OgracScenario(sourceDbType, targetDbType)) {
+            LOGGER.info("Using OgracTargetDatabase for Oracle2Ograc scenario");
+            return new OgracTargetDatabase(globalConfig);
         } else {
             LOGGER.info("Using traditional TargetDatabase for CSV scenario");
             return new TargetDatabase(globalConfig, getOpenGaussSqlCompatibilityEnum(globalConfig.getOgConn()));
@@ -48,14 +47,14 @@ public class TargetDatabaseFactory {
     }
     
     /**
-     * isDataXScenario
-     * Determine if it's a DataX scenario
+     * isOracle2OgracScenario
+     * Determine if it's a Oracle2Ograc scenario
      *
      * @param sourceDbType Source database type
      * @param targetDbType Target database type
      * @return Whether it's a DataX scenario
      */
-    private static boolean isDataXScenario(String sourceDbType, String targetDbType) {
+    private static boolean isOracle2OgracScenario(String sourceDbType, String targetDbType) {
         // Define scenarios that require DataX
         // 1. Oracle to Ograc migration
         if ("oracle".equalsIgnoreCase(sourceDbType) && "ograc".equalsIgnoreCase(targetDbType)) {

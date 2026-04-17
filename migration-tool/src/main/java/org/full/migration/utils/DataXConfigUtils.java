@@ -4,6 +4,7 @@
 
 package org.full.migration.utils;
 
+import org.full.migration.constants.OracleSqlConstants;
 import org.full.migration.datax.config.DataXCommonConfig;
 import org.full.migration.exception.ConfigurationException;
 import org.full.migration.exception.ErrorCode;
@@ -23,21 +24,6 @@ public class DataXConfigUtils {
      */
     public static DataXCommonConfig loadCommonConfig(GlobalConfig globalConfig) throws ConfigurationException {
         DataXCommonConfig config = new DataXCommonConfig();
-        config.setChannel(4);
-        config.setErrorRecordLimit(100);
-        config.setErrorPercentageLimit(0.1);
-        config.setReadBatchSize(1024);
-        config.setWriteBatchSize(1024);
-        config.setReadTimeout(30000);
-        config.setWriteTimeout(30000);
-        config.setEnableBatchWrite(true);
-        config.setBatchWriteSize(1000);
-        config.setEnablePrepareStatement(true);
-        config.setRetryTimes(3);
-        config.setRetryInterval(1000);
-        config.setReaderName("oraclereader");
-        config.setWriterName("gaussdbwriter");
-
         if (globalConfig != null && globalConfig.getDatax() != null) {
             DataXParamConfig dataxConfig = globalConfig.getDatax();
             try {
@@ -89,8 +75,8 @@ public class DataXConfigUtils {
      * @return jdbcUrl
      */
     private static String generateReaderJdbcUrl(DatabaseConfig sourceConfig) {
-        return "jdbc:oracle:thin:@" + sourceConfig.getHost() + ":" + sourceConfig.getPort() + ":"
-                + sourceConfig.getDatabase();
+        return String.format(OracleSqlConstants.ORACLE_JDBC_URL, sourceConfig.getHost(),
+            sourceConfig.getPort(), sourceConfig.getDatabase());
     }
 
     /**
@@ -101,7 +87,7 @@ public class DataXConfigUtils {
      * @return jdbcUrl
      */
     private static String generateWriterJdbcUrl(DatabaseConfig targetConfig) {
-        return "jdbc:oGRAC://" + targetConfig.getHost() + ":" + targetConfig.getPort();
+        return "jdbc:oGRAC://" + targetConfig.getHost() + ":" + targetConfig.getPort()+"?socketTimeout=90000";
     }
 
     /**
