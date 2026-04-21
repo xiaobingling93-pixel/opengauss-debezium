@@ -43,6 +43,8 @@ public class SourceDatabaseFactory {
             return new PostgresSource(globalConfig);
         } else if ("opengauss".equals(dbType)) {
             return createOpenGaussSource(globalConfig);
+        } else if ("oracle".equals(dbType)) {
+            return new OracleSourceDatabase(globalConfig);
         } else {
             throw new IllegalArgumentException("Unsupported source database type: " + dbType);
         }

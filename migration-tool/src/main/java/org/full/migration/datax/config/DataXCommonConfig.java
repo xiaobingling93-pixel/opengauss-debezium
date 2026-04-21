@@ -41,16 +41,16 @@ public class DataXCommonConfig {
     private int readTimeout = 60000;
     private int writeTimeout = 60000;
     private boolean enableBatchWrite = true;
-    private int batchWriteSize = 1000;
+    private int batchWriteSize = 1024;
     private boolean enablePrepareStatement = true;
     private int retryTimes = 3;
-    private int retryInterval = 1000;
-    private String readerName;
+    private int retryInterval = 10000;
+    private String readerName="oraclereader";
     private String readerJdbcUrl;
     private String readerUsername;
     private String readerPassword;
 
-    private String writerName;
+    private String writerName="gaussdbwriter";
     private String writerUsername;
     private String writerPassword;
     private String writerJdbcUrl;

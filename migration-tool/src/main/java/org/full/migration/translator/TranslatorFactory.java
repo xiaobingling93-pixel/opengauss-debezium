@@ -31,13 +31,13 @@ public class TranslatorFactory {
     static {
         // Register supported database types and their translators
         // PostgreSQL to openGauss translator
-        translators.put("postgresql", new Postgresql2OpenGaussTranslator());
+        translators.put("postgresql2opengauss", new Postgresql2OpenGaussTranslator());
         // SQL Server to openGauss translator
-        translators.put("sqlserver", new SqlServer2OpenGaussTranslator());
+        translators.put("sqlserver2opengauss", new SqlServer2OpenGaussTranslator());
         // openGauss to openGauss translator
-        translators.put("opengauss", new OpenGauss2OpenGaussTranslator());
+        translators.put("opengauss2opengauss", new OpenGauss2OpenGaussTranslator());
         // Oracle to OGRAC translator
-        translators.put("oracle", new Oracle2OgracTranslator());
+        translators.put("oracle2ograc", new Oracle2OgracTranslator());
     }
 
     /**
@@ -50,7 +50,7 @@ public class TranslatorFactory {
         if (translator == null) {
             throw new IllegalArgumentException("Unsupported database type: " + dbType);
         }
-        return translator;
+        return getTranslator(dbType, "opengauss");
     }
 
     /**
@@ -74,16 +74,17 @@ public class TranslatorFactory {
     public static Source2TargetTranslator getTranslator(String sourceDbType, String targetDbType) {
         // Currently only supports specific source-target database combinations
         // Future extensions can support more combinations
-        Source2TargetTranslator translator = translators.get(sourceDbType.toLowerCase());
+         Source2TargetTranslator translator = translators.get(getTranslatorKey(sourceDbType, targetDbType));
         if (translator == null) {
-            throw new IllegalArgumentException("Unsupported source database type: " + sourceDbType);
-        }
-        
-        // Check if the translator supports the target database type
-        if (!translator.getTargetDatabaseType().equalsIgnoreCase(targetDbType)) {
             throw new IllegalArgumentException("Translator for " + sourceDbType + " does not support target database type: " + targetDbType);
         }
-        
         return translator;
+    }
+
+    private static String getTranslatorKey(String sourceDbType, String targetDbType) {
+        if(targetDbType == null) {
+           return sourceDbType.toLowerCase();
+        }
+        return sourceDbType.toLowerCase() + "2" + targetDbType.toLowerCase();
     }
 }

@@ -116,24 +116,24 @@ END;
 /
 
 -- 5. 外键表
-CREATE TABLE department_table (
+CREATE TABLE table_structure_department_table (
     department_id NUMBER PRIMARY KEY,
     department_name VARCHAR2(100),
     location VARCHAR2(100)
 );
 
-CREATE TABLE employee_table (
+CREATE TABLE table_structure_employee_table (
     employee_id NUMBER PRIMARY KEY,
     name VARCHAR2(100),
     department_id NUMBER,
     salary NUMBER(10,2),
-    CONSTRAINT fk_department FOREIGN KEY (department_id) REFERENCES department_table(department_id)
+    CONSTRAINT fk_department FOREIGN KEY (department_id) REFERENCES table_structure_department_table(department_id)
 );
 
 -- 插入部门数据
 BEGIN
     FOR i IN 1..20 LOOP
-        INSERT INTO department_table VALUES (
+        INSERT INTO table_structure_department_table VALUES (
             i,
             '部门' || i,
             CASE MOD(i, 6)
@@ -153,7 +153,7 @@ END;
 -- 插入员工数据
 BEGIN
     FOR i IN 1..1000 LOOP
-        INSERT INTO employee_table VALUES (
+        INSERT INTO table_structure_employee_table VALUES (
             i,
             '员工' || i,
             1 + MOD(i, 20),
@@ -327,7 +327,7 @@ SELECT table_name, column_name, data_type, nullable, data_default
 FROM user_tab_columns 
 WHERE table_name IN (
     'NO_PRIMARY_KEY_TABLE', 'SINGLE_PRIMARY_KEY_TABLE', 'AUTO_INCREMENT_TABLE',
-    'COMPOSITE_PRIMARY_KEY_TABLE', 'DEPARTMENT_TABLE', 'EMPLOYEE_TABLE',
+    'COMPOSITE_PRIMARY_KEY_TABLE', 'TABLE_STRUCTURE_DEPARTMENT_TABLE', 'TABLE_STRUCTURE_EMPLOYEE_TABLE',
     'UNIQUE_CONSTRAINT_TABLE', 'CHECK_CONSTRAINT_TABLE', 'NOT_NULL_CONSTRAINT_TABLE',
     'DEFAULT_VALUE_TABLE', 'INDEX_TABLE'
 )
@@ -338,7 +338,7 @@ SELECT table_name, constraint_name, constraint_type
 FROM user_constraints 
 WHERE table_name IN (
     'NO_PRIMARY_KEY_TABLE', 'SINGLE_PRIMARY_KEY_TABLE', 'AUTO_INCREMENT_TABLE',
-    'COMPOSITE_PRIMARY_KEY_TABLE', 'DEPARTMENT_TABLE', 'EMPLOYEE_TABLE',
+    'COMPOSITE_PRIMARY_KEY_TABLE', 'TABLE_STRUCTURE_DEPARTMENT_TABLE', 'TABLE_STRUCTURE_EMPLOYEE_TABLE',
     'UNIQUE_CONSTRAINT_TABLE', 'CHECK_CONSTRAINT_TABLE', 'NOT_NULL_CONSTRAINT_TABLE',
     'DEFAULT_VALUE_TABLE', 'INDEX_TABLE'
 )

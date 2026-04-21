@@ -230,4 +230,57 @@ public class FileUtils {
             LOGGER.error("Error walking directory: {}, error: {}", directoryPath, e.getMessage());
         }
     }
+
+    /**
+     * validatePath
+     * Validates that a path is safe and within the specified base directory
+     *
+     * @param path Path to validate
+     * @param baseDir Base directory to restrict to
+     * @return True if the path is safe, false otherwise
+     */
+    public static boolean validatePath(String path, String baseDir) {
+        try {
+            Path normalizedPath = Paths.get(path).toAbsolutePath().normalize();
+            Path normalizedBaseDir = Paths.get(baseDir).toAbsolutePath().normalize();
+            return normalizedPath.startsWith(normalizedBaseDir);
+        } catch (Exception e) {
+            LOGGER.warn("Path validation failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * getSafePath
+     * Gets a safe path within the specified base directory
+     *
+     * @param fileName File name to use
+     * @param baseDir Base directory to restrict to
+     * @return Safe path within the base directory
+     */
+    public static String getSafePath(String fileName, String baseDir) {
+        // Remove any path separators from the file name to prevent directory traversal
+        String safeFileName = fileName.replace(File.separator, "");
+        // Create path within base directory
+        return baseDir + File.separator + safeFileName;
+    }
+
+    /**
+     * isPathWithinDirectory
+     * Checks if a path is within the specified directory
+     *
+     * @param path Path to check
+     * @param directory Directory to check against
+     * @return True if the path is within the directory, false otherwise
+     */
+    public static boolean isPathWithinDirectory(String path, String directory) {
+        try {
+            Path normalizedPath = Paths.get(path).toAbsolutePath().normalize();
+            Path normalizedDirectory = Paths.get(directory).toAbsolutePath().normalize();
+            return normalizedPath.startsWith(normalizedDirectory);
+        } catch (Exception e) {
+            LOGGER.warn("Path check failed: {}", e.getMessage());
+            return false;
+        }
+    }
 }

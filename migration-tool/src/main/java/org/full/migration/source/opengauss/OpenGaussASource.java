@@ -16,4 +16,9 @@ public class OpenGaussASource extends OpenGaussSource {
     public OpenGaussASource(GlobalConfig globalConfig) {
         super(globalConfig, SqlCompatibilityEnum.A);
     }
+
+    @Override
+    protected String getDatabaseType() {
+        return "opengauss_a";
+    }
 }

@@ -19,6 +19,7 @@ import com.alibaba.druid.DbType;
 import com.alibaba.druid.sql.SQLUtils;
 import com.alibaba.druid.sql.ast.SQLStatement;
 
+import org.full.migration.model.table.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +70,11 @@ public class SqlServer2OpenGaussTranslator extends Source2OpenGaussTranslator {
     @Override
     public Optional<String> translate(String sqlIn, boolean isDebug, boolean isColumnCaseSensitiv) {
         return translateSQLServer2openGauss(sqlIn, isDebug, isColumnCaseSensitiv);
+    }
+
+    @Override
+    public Optional<String> translateColumnType(String tableName, Column column) {
+        return Optional.empty();
     }
 
     @Override

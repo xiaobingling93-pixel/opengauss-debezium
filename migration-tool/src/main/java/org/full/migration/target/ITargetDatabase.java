@@ -4,6 +4,8 @@
 
 package org.full.migration.target;
 
+import org.full.migration.exception.DatabaseConnectionException;
+import org.full.migration.exception.MigrationException;
 import org.full.migration.model.PostgresCustomTypeMeta;
 import org.full.migration.model.table.TableData;
 
@@ -20,6 +22,12 @@ import java.util.Set;
  */
 public interface ITargetDatabase {
     /**
+     * Check the connection to the target database  
+     * 
+     * @throws DatabaseConnectionException
+     */
+    void checkConnection() throws DatabaseConnectionException;
+    /**
      * Insert table snapshot information into the target database
      * 
      * @param conn      Database connection
@@ -31,8 +39,9 @@ public interface ITargetDatabase {
      * Create schemas in the target database
      * 
      * @param schemas Set of schema names to create
+     * @throws MigrationException 
      */
-    void createSchemas(Set<String> schemas);
+     void createSchemas(Set<String> schemas) throws MigrationException;
     
     /**
      * Write constraints to the target database
@@ -83,4 +92,9 @@ public interface ITargetDatabase {
      * @param customTypes List of custom type metadata
      */
     void createCustomOrDomainTypes(List<PostgresCustomTypeMeta> customTypes);
+    
+    /**
+     * Shutdown the target database instance and release resources
+     */
+    void shutdown();
 }

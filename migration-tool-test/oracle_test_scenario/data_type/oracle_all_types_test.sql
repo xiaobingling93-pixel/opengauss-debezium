@@ -104,7 +104,7 @@ INSERT INTO basic_character_types_test VALUES (
 CREATE TABLE national_character_types_test (
     -- 国家字符集
     id NUMBER PRIMARY KEY,
-    nchar_default NCHAR,             -- 默认长度NCHAR(1)
+    nchar_default NCHAR(2),             -- 默认长度NCHAR(1)
     nchar_col NCHAR(10),            -- 固定长度国家字符
     nchar_max NCHAR(1000),          -- 最大长度NCHAR
     nvarchar2_col NVARCHAR2(100),   -- 可变长度国家字符
@@ -112,11 +112,24 @@ CREATE TABLE national_character_types_test (
 );
 
 -- 插入国家字符类型测试数据
-INSERT INTO national_character_types_test VALUES (
-    1, N'中', N'国家字符', N'国家字符' || RPAD('中', 990, '中'), 
-    N'可变国家字符', N'可变国家字符' || RPAD('文', 1990, '文')
+INSERT INTO national_character_types_test 
+VALUES (
+    1, 
+    N'中',                -- NCHAR 默认长度 1，正确
+    N'国家字符',         -- NCHAR(10)，正确
+    N'国家字符',         -- NCHAR(1000) 不超长
+    N'可变国家字符',     -- NVARCHAR2(100)
+    N'可变国家字符'      -- NVARCHAR2(2000)
 );
-
+INSERT INTO national_character_types_test 
+VALUES (
+    2,
+    N'中',
+    N'国家字符',
+    RPAD(N'中', 1000, N'中'),        -- NCHAR(1000) 满字符
+    N'可变国家字符',
+    RPAD(N'文', 2000, N'文')         -- NVARCHAR2(2000) 满字符
+);
 -- 2.3 大字符对象测试表
 CREATE TABLE lob_character_types_test (
     -- 大字符对象
@@ -293,17 +306,14 @@ INSERT INTO xml_types_test VALUES (
 -- 8. JSON类型测试表
 -------------------------------------------------------------------------------
 CREATE TABLE json_types_test (
-    -- JSON类型
     id NUMBER PRIMARY KEY,
-    json_col JSON                     -- JSON数据类型 (Oracle 21c+)，支持JSON操作和查询
+    json_col CLOB CHECK (json_col IS JSON)
 );
-
--- 插入JSON类型测试数据
-INSERT INTO json_types_test VALUES (
+INSERT INTO json_types_test (id, json_col)
+VALUES (
     1, 
-    JSON('{"name": "John", "age": 30, "address": {"city": "New York"}}')
+    '{"name": "John", "age": 30, "address": {"city": "New York"}}'
 );
-
 -------------------------------------------------------------------------------
 -- 9. BFILE类型测试表
 -------------------------------------------------------------------------------
@@ -362,65 +372,3 @@ INSERT INTO boundary_values_test VALUES (
     TO_DATE('9999-12-31', 'YYYY-MM-DD'),    -- 最大日期
     NULL                                   -- NULL日期
 );
-
--------------------------------------------------------------------------------
--- 查看所有测试表结构
--------------------------------------------------------------------------------
-DESC integer_types_test;
-DESC decimal_types_test;
-DESC float_types_test;
-DESC binary_float_types_test;
-DESC basic_character_types_test;
-DESC national_character_types_test;
-DESC lob_character_types_test;
-DESC date_types_test;
-DESC binary_types_test;
-DESC boolean_type_test;
-DESC special_types_test;
-DESC xml_types_test;
-DESC json_types_test;
-DESC bfile_types_test;
-DESC anydata_types_test;
-DESC boundary_values_test;
-
--------------------------------------------------------------------------------
--- 查看创建的所有测试表
--------------------------------------------------------------------------------
-SELECT table_name FROM user_tables WHERE table_name LIKE '%_TEST' ORDER BY table_name;
-
--------------------------------------------------------------------------------
--- 验证数据插入
--------------------------------------------------------------------------------
-SELECT * FROM integer_types_test;
-SELECT * FROM decimal_types_test;
-SELECT * FROM float_types_test;
-SELECT * FROM binary_float_types_test;
-SELECT * FROM basic_character_types_test;
-SELECT * FROM national_character_types_test;
-SELECT id, DBMS_LOB.getlength(clob_col) as clob_length FROM lob_character_types_test; -- 显示CLOB长度
-SELECT id, DBMS_LOB.getlength(nclob_col) as nclob_length FROM lob_character_types_test; -- 显示NCLOB长度
-SELECT * FROM date_types_test;
-SELECT id, DBMS_LOB.getlength(blob_col) as blob_length FROM binary_types_test; -- 显示BLOB长度
-SELECT * FROM boolean_type_test;
-SELECT * FROM special_types_test;
-SELECT id, xml_col.getClobVal() FROM xml_types_test;
-SELECT id, json_col FROM json_types_test;
-SELECT * FROM boundary_values_test;
-
--------------------------------------------------------------------------------
--- 数据类型转换测试
--------------------------------------------------------------------------------
--- 测试隐式转换
-SELECT 
-    TO_NUMBER('12345') as string_to_number,
-    TO_CHAR(12345) as number_to_string,
-    TO_DATE('2023-01-01', 'YYYY-MM-DD') as string_to_date,
-    TO_CHAR(SYSDATE, 'YYYY-MM-DD') as date_to_string
-FROM dual;
-
--- 测试显式转换
-SELECT 
-    CAST('12345' AS NUMBER) as cast_string_to_number,
-    CAST(12345 AS VARCHAR2(10)) as cast_number_to_string,
-    CAST(SYSDATE AS VARCHAR2(20)) as cast_date_to_string
-FROM dual;

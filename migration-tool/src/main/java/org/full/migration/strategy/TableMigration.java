@@ -17,6 +17,7 @@ package org.full.migration.strategy;
 
 import org.apache.commons.lang3.StringUtils;
 import org.full.migration.coordinator.QueueManager;
+import org.full.migration.exception.MigrationException;
 import org.full.migration.model.PostgresCustomTypeMeta;
 import org.full.migration.model.config.SourceConfig;
 import org.full.migration.source.SourceDatabase;
@@ -50,7 +51,7 @@ public class TableMigration extends MigrationStrategy {
     }
 
     @Override
-    public void migration(String sourceDbType) {
+    public void migration(String sourceDbType) throws MigrationException {
         if (source == null) {
             throw new IllegalStateException("Source is not initialized.");
         }

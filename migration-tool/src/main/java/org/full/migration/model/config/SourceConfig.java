@@ -19,7 +19,6 @@ import lombok.Data;
 import org.apache.commons.lang3.StringUtils;
 import org.full.migration.constants.Unit;
 import org.full.migration.validator.ValidMap;
-import org.full.migration.validator.ValidPluginName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

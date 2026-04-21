@@ -62,17 +62,17 @@ public class CheckDataCommand implements TestCommand {
      */
     private void printTableData(Connection conn) throws SQLException {
         String sql = """
-                SELECT t.table_name, t.tablespace_name, t.num_rows, t.last_analyzed, ROUND(NVL(s.bytes, 0)/1024/1024/1024, 2) GB_used
-                FROM user_tables t
-                LEFT JOIN (
-                    SELECT segment_name, SUM(bytes) bytes  FROM user_segments  WHERE segment_type = 'TABLE' GROUP BY segment_name
-                ) s  ON t.table_name = s.segment_name
-                ORDER BY t.table_name
+                    SELECT t.table_name, t.tablespace_name, t.num_rows, t.avg_row_len, t.last_analyzed,
+                        ROUND(NVL(t.num_rows * t.avg_row_len, 0) / 1024 / 1024 / 1024, 2) AS estimated_gb
+                    FROM user_tables t 
+                    WHERE t.table_name NOT LIKE 'BIN$%' 
+                    AND t.table_name NOT LIKE 'DR$%' 
+                    ORDER BY t.table_name 
                 """;
 
         try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(sql)) {
 
-            System.out.println("TABLE_NAME\t\t\tTABLESPACE_NAME\t\tNUM_ROWS\tLAST_ANALYZED\t\tGB_USED");
+            System.out.println("TABLE_NAME\t\t\tTABLESPACE_NAME\t\tNUM_ROWS\tAVG_ROW_LEN\tLAST_ANALYZED\t\tESTIMATED_GB");
             System.out.println("----------------------------------------------------------------------------------------------------");
 
             double totalSize = 0;
@@ -81,17 +81,18 @@ public class CheckDataCommand implements TestCommand {
                 String tableName = rs.getString("table_name");
                 String tablespaceName = rs.getString("tablespace_name");
                 int numRows = rs.getInt("num_rows");
+                int avgRowLen = rs.getInt("avg_row_len");
                 java.sql.Timestamp lastAnalyzed = rs.getTimestamp("last_analyzed");
-                double gbUsed = rs.getDouble("GB_used");
+                double gbUsed = rs.getDouble("estimated_gb");
                 totalSize += gbUsed;
                 totalRows += numRows;
 
-                System.out.printf("%-30s\t%-15s\t%-10d\t%-20s\t%.2f%n", 
-                    tableName, tablespaceName, numRows, 
+                System.out.printf("%-30s\t%-15s\t%-10d\t%-10d\t%-20s\t%.2f%n", 
+                    tableName, tablespaceName, numRows, avgRowLen,
                     lastAnalyzed != null ? lastAnalyzed.toString() : "null", gbUsed);
             }
             System.out.println("----------------------------------------------------------------------------------------------------");
-            System.out.printf("TOTAL\t\t\t\t\t\t%-10d\t\t\t\t%.2f GB%n", totalRows, totalSize);
+            System.out.printf("TOTAL\t\t\t\t\t\t%-10d\t\t\t\t\t%.2f GB%n", totalRows, totalSize);
             System.out.println("----------------------------------------------------------------------------------------------------");
         }
     }
@@ -109,7 +110,7 @@ public class CheckDataCommand implements TestCommand {
                 SELECT tablespace_name, ROUND(SUM(bytes)/1024/1024/1024, 2) GB_used,
                        ROUND(SUM(DECODE(autoextensible, 'YES', maxbytes, bytes))/1024/1024/1024, 2) GB_max,
                        ROUND(SUM(bytes)/SUM(DECODE(autoextensible, 'YES', maxbytes, bytes))*100, 2) pct_used
-                FROM dba_data_files WHERE tablespace_name='USERS'  GROUP BY tablespace_name
+                FROM dba_data_files WHERE tablespace_name='USERS' GROUP BY tablespace_name
                 """;
         try (Statement stmt = conn.createStatement(); ResultSet rs = stmt.executeQuery(tablespaceSql)) {
             System.out.println("\nUSERS TABLESPACE USAGE:");

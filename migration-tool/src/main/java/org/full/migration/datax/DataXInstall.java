@@ -18,6 +18,8 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * DataXInstall
@@ -28,6 +30,55 @@ import java.nio.file.StandardCopyOption;
  */
 public class DataXInstall {
     private static final Logger LOGGER = LoggerFactory.getLogger(DataXInstall.class);
+    private static final List<Process> RUNNING_PROCESSES = new CopyOnWriteArrayList<>();
+    
+    static {
+        // Register shutdown hook early to clean up any DataX processes
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            LOGGER.info("Shutdown hook triggered, cleaning up DataX processes");
+            // Clean up processes tracked by DataXInstall
+            for (Process process : RUNNING_PROCESSES) {
+                if (process.isAlive()) {
+                    try {
+                        LOGGER.info("Terminating DataX process with PID: {}", process.pid());
+                        process.destroy();
+                        // Wait a short time for process to exit gracefully
+                        if (!process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)) {
+                            LOGGER.warn("DataX process did not exit gracefully, force killing it");
+                            process.destroyForcibly();
+                        }
+                    } catch (InterruptedException e) {
+                        LOGGER.error("Error while terminating DataX process", e);
+                        Thread.currentThread().interrupt();
+                    }
+                }
+            }
+            RUNNING_PROCESSES.clear();
+        }));
+    }
+    
+
+    
+    /**
+     * Add a process to the tracking list
+     * @param process DataX process to track
+     */
+    public static void addProcess(Process process) {
+        RUNNING_PROCESSES.add(process);
+        LOGGER.debug("Added DataX process to tracking list, PID: {}", process.pid());
+    }
+    
+    /**
+     * Remove a process from the tracking list
+     * @param process DataX process to remove
+     */
+    public static void removeProcess(Process process) {
+        if (RUNNING_PROCESSES.remove(process)) {
+            LOGGER.debug("Removed DataX process from tracking list, PID: {}", process.pid());
+        }
+    }
+    
+
 
     /**
      * Initialize DataX tools

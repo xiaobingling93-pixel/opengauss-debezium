@@ -15,6 +15,7 @@
 
 package org.full.migration.translator;
 
+import org.full.migration.model.table.Column;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,6 +33,11 @@ public class Postgresql2OpenGaussTranslator extends Source2OpenGaussTranslator {
     public Optional<String> translate(String sqlIn, boolean isDebug,
                                       boolean isColumnCaseSensitive) {
         return Optional.of(sqlIn);
+    }
+
+    @Override
+    public Optional<String> translateColumnType(String tableName, Column column) {
+        return Optional.empty();
     }
 
     @Override

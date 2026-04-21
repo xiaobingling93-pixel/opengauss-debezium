@@ -40,4 +40,13 @@ public abstract class Source2OpenGaussTranslator implements Source2TargetTransla
     @Override
     public abstract Optional<String> translate(String sqlIn, boolean isDebug,
                                                boolean isColumnCaseSensitiv);
+
+    public Optional<String> translateIndex(String indexType, boolean isDebug) {
+        return Optional.empty();
+    }
+    
+    @Override
+    public Optional<String> translateFunction(String functionCall, boolean isDebug) {
+        return Optional.of(functionCall);
+    }
 }

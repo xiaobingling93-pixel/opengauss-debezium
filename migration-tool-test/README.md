@@ -114,6 +114,40 @@ java -jar migration-tool-test-1.0.jar --action prepare --config config/your_conf
 java -jar migration-tool-test-1.0.jar --action check --config config/your_config.yml
 ```
 
+**Expected Output:**
+
+```
+TABLE_NAME                     TABLESPACE_NAME   NUM_ROWS    AVG_ROW_LEN  LAST_ANALYZED          ESTIMATED_GB
+----------------------------------------------------------------------------------------------------
+TABLE_1                        USERS             100000      42           2026-04-15 10:30:00.0   0.00
+TABLE_2                        USERS             50000       128          2026-04-15 10:30:05.0   0.01
+TABLE_3                        USERS             200000      256          2026-04-15 10:30:10.0   0.05
+----------------------------------------------------------------------------------------------------
+TOTAL                                                   350000                                  0.06 GB
+----------------------------------------------------------------------------------------------------
+
+USERS TABLESPACE USAGE:
+----------------------------------------------------------------------------------------------------
+TABLESPACE_NAME   GB_USED   GB_MAX   PCT_USED
+----------------------------------------------------------------------------------------------------
+USERS             5.23      10.00    52.30%
+----------------------------------------------------------------------------------------------------
+```
+
+**Output Fields:**
+
+| Field | Description |
+|-------|-------------|
+| TABLE_NAME | Name of the database table |
+| TABLESPACE_NAME | Tablespace where the table is stored |
+| NUM_ROWS | Number of rows in the table (statistics from user_tables) |
+| AVG_ROW_LEN | Average row length in bytes |
+| LAST_ANALYZED | Last time table statistics were gathered |
+| ESTIMATED_GB | Estimated table size in GB (num_rows * avg_row_len / 1024 / 1024 / 1024) |
+| GB_USED | Actual tablespace usage in GB |
+| GB_MAX | Maximum tablespace size in GB |
+| PCT_USED | Percentage of tablespace usage |
+
 
 ## Test Scenarios
 

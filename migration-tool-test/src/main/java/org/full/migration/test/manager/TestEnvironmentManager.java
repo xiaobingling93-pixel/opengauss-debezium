@@ -173,6 +173,30 @@ public class TestEnvironmentManager {
                 if (line.isEmpty() || line.startsWith("--")) {
                     continue;
                 }
+                
+                // Handle SQL*Plus @ command for including other scripts
+                if (line.startsWith("@")) {
+                    String includePath = line.substring(1).trim();
+                    // For combined test script, resolve paths from oracle_test_scenario directory
+                    File baseDir = sqlFile.getParentFile();
+                    if (baseDir.getName().equals("combined")) {
+                        baseDir = baseDir.getParentFile(); // Go up to oracle_test_scenario directory
+                    }
+                    File includedFile = new File(baseDir, includePath);
+                    if (includedFile.exists() && includedFile.isFile()) {
+                        if (isLogEnabled()) {
+                            System.out.println("Executing included script: " + includePath);
+                        }
+                        executeSqlFile(conn, includedFile);
+                    } else {
+                        if (isLogEnabled()) {
+                            System.err.println("Included script not found: " + includePath);
+                            System.err.println("Expected path: " + includedFile.getAbsolutePath());
+                        }
+                    }
+                    continue;
+                }
+                
                 if (line.equals("/")) {
                     String statement = currentStatement.toString().trim();
                     if (!statement.isEmpty()) {
@@ -190,6 +214,9 @@ public class TestEnvironmentManager {
                         currentStatement = new StringBuilder();
                         isInPlSqlBlock = false;
                     }
+                } else if (line.startsWith("CREATE OR REPLACE FUNCTION") || line.startsWith("CREATE OR REPLACE PROCEDURE") || line.startsWith("CREATE OR REPLACE TRIGGER")) {
+                    isInPlSqlBlock = true;
+                    currentStatement.append(line).append("\n");
                 } else if (line.startsWith("DECLARE") || line.startsWith("BEGIN")) {
                     isInPlSqlBlock = true;
                     currentStatement.append(line).append("\n");

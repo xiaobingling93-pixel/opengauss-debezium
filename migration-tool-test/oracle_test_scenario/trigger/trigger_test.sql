@@ -66,42 +66,6 @@ BEGIN
 END;
 /
 
--- 4. Compound trigger
-CREATE OR REPLACE TRIGGER compound_trigger
-FOR trigger_test_table
-COMPOUND TRIGGER
-    -- Declare variables
-    v_operation_count NUMBER := 0;
-    
-    BEFORE STATEMENT IS
-    BEGIN
-        v_operation_count := 0;
-        DBMS_OUTPUT.PUT_LINE('Before statement: operation count reset to 0');
-    END BEFORE STATEMENT;
-    
-    BEFORE EACH ROW IS
-    BEGIN
-        IF INSERTING THEN
-            IF :NEW.create_date IS NULL THEN
-                :NEW.create_date := SYSDATE;
-            END IF;
-        ELSIF UPDATING THEN
-            :NEW.update_date := SYSDATE;
-        END IF;
-    END BEFORE EACH ROW;
-    
-    AFTER EACH ROW IS
-    BEGIN
-        v_operation_count := v_operation_count + 1;
-    END AFTER EACH ROW;
-    
-    AFTER STATEMENT IS
-    BEGIN
-        DBMS_OUTPUT.PUT_LINE('After statement: total operations: ' || v_operation_count);
-    END AFTER STATEMENT;
-END compound_trigger;
-/
-
 -- 5. INSTEAD OF trigger (for views)
 -- Create a view for testing INSTEAD OF trigger
 CREATE VIEW trigger_test_view AS
